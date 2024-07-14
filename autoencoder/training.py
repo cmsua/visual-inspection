@@ -36,7 +36,7 @@ def train_autoencoder(
     scheduler: Optional[optim.lr_scheduler._LRScheduler] = None,
     num_epochs: int = 100,
     chunk_size: int = 12,
-    save_path: str = os.path.join(DATASET_PATH, 'model_name.pt')
+    save_path: str = os.path.join(DATASET_PATH, 'model.pt')
 ) -> Tuple[Dict[str, List[float]], nn.Module]:
     history = {
         'epoch': [],
@@ -44,7 +44,7 @@ def train_autoencoder(
         'val_loss': [],
         'learning_rate': []
     }  # initialize a dictionary to store epoch-wise results
-    best_val_loss = float('inf')
+    best_loss_spread = 0.0
 
     # Initialize grads to None for the first iteration
     grads = None
@@ -105,11 +105,36 @@ def train_autoencoder(
             scheduler.step()
 
         # Save the parameters with the best validation loss
-        if train_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_loss - train_loss > best_loss_spread:
+            best_loss_spread = val_loss - train_loss
             torch.save(model.state_dict(), save_path)
 
     return history, model
+
+def plot_metrics(history):
+    epochs = history['epoch']
+
+    plt.figure(figsize=(12, 5))
+
+    # Plot loss
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, history['train_loss'], label='Train Loss')
+    plt.plot(epochs, history['val_loss'], label='Val Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss')
+    plt.legend()
+
+    # Plot learning rate
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, history['learning_rate'], label='Learning Rate')
+    plt.xlabel('Epoch')
+    plt.ylabel('Learning Rate')
+    plt.title('Learning Rate Schedule')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
 
 def evaluate_autoencoder(
     model: nn.Module,
