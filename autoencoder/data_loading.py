@@ -1,5 +1,6 @@
 # Import necessary libraries
 import os
+from collections.abc import MutableSequence
 
 import numpy as np
 from PIL import Image
@@ -12,13 +13,13 @@ from utils import *
 
 # Define the custom transformation for rotations and segmentations
 class RotationAndSegmentationTransform:
-    def __init__(self, height, width, vertical_segments, horizontal_segments):
+    def __init__(self, height: int, width: int, vertical_segments: int, horizontal_segments: int):
         self.height = height
         self.width = width
         self.vertical_segments = vertical_segments
         self.horizontal_segments = horizontal_segments
 
-    def __call__(self, image):
+    def __call__(self, image: Image) -> torch.Tensor:
         width = self.width
         a = width / 2
         height = int(np.sqrt(3) * a)
@@ -37,15 +38,15 @@ class RotationAndSegmentationTransform:
 
 # Define the custom dataset
 class HexaboardDataset(Dataset):
-    def __init__(self, image_dir, transform=None):
+    def __init__(self, image_dir: str, transform: transforms.Compose=None) -> None:
         self.image_dir = image_dir
         self.transform = transform
         self.image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.image_paths)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> Image:
         actual_idx = idx % len(self.image_paths)
         img_path = self.image_paths[actual_idx]
         image = Image.open(img_path)
@@ -54,7 +55,7 @@ class HexaboardDataset(Dataset):
         return image
 
 class ConvAutoEncoder(nn.Module):
-    def __init__(self, height, width, latent_dim, kernel_sizes):
+    def __init__(self, height: int, width: int, latent_dim: int, kernel_sizes: MutableSequence[int]):
         super(ConvAutoEncoder, self).__init__()
         self.height = height
         self.width = width
@@ -89,7 +90,7 @@ class ConvAutoEncoder(nn.Module):
             # nn.Sigmoid(),  # For image outputs
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Encoding
         x = self.encoder(x)
         x = self.flatten(x)
