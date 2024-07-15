@@ -19,9 +19,6 @@ torch.manual_seed(42)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-# Path to the datasets folder
-DATASET_PATH = './datasets'
-
 # Path to the checkpoints folder
 # CHECKPOINT_PATH = '/content/drive/MyDrive/Colab Notebooks/HGCAL/checkpoints'
 
@@ -36,7 +33,7 @@ def train_autoencoder(
     scheduler: Optional[optim.lr_scheduler._LRScheduler] = None,
     num_epochs: int = 100,
     chunk_size: int = 12,
-    save_path: str = os.path.join(DATASET_PATH, 'model.pt')
+    save_path: str = 'model.pt'
 ) -> Tuple[Dict[str, List[float]], nn.Module]:
     history = {
         'epoch': [],
