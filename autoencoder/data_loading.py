@@ -24,9 +24,9 @@ class RotationAndSegmentationTransform:
         height = int(np.sqrt(3) * a)
 
         segments = []
-        segments.extend(get_segments_1(image, height, width, self.vertical_segments, self.horizontal_segments))
-        segments.extend(get_segments_2(image, height, width, self.vertical_segments, self.horizontal_segments))
-        segments.extend(get_segments_3(image, height, width, self.vertical_segments, self.horizontal_segments))
+        segments.extend(get_segments(image, height, width, self.vertical_segments, self.horizontal_segments))
+        segments.extend(get_segments(image, height, width, self.vertical_segments, self.horizontal_segments, 60))
+        segments.extend(get_segments(image, height, width, self.vertical_segments, self.horizontal_segments, 240))
 
         # Convert PIL segments to tensors
         segments = [transforms.ToTensor()(segment) for segment in segments]
