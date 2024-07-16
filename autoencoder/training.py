@@ -41,7 +41,7 @@ def train_autoencoder(
         'val_loss': [],
         'learning_rate': []
     }  # initialize a dictionary to store epoch-wise results
-    best_loss_spread = 0.0
+    best_val_loss = float('inf')
 
     # Initialize grads to None for the first iteration
     grads = None
@@ -55,7 +55,7 @@ def train_autoencoder(
             inputs = inputs.to(device)
             inputs = inputs.squeeze(0)
             for input in inputs.chunk(chunk_size):
-                intput = input.squeeze(0)
+                input = input.squeeze(0)
                 optimizer.zero_grad()
 
                 output = model(input)
@@ -75,15 +75,12 @@ def train_autoencoder(
         with torch.no_grad():
             for inputs in val_loader:
                 inputs = inputs.to(device)
-                inputs = inputs.squeeze(0)
-                for input in inputs.chunk(chunk_size):
-                    intput = input.squeeze(0)
-                    output = model(input)
-                    loss = criterion(output, input)
+                output = model(inputs)
+                loss = criterion(output, inputs)
 
-                    val_loss += loss.item()
+                val_loss += loss.item()
 
-            val_loss /= chunk_size * len(val_loader)
+            val_loss /= len(val_loader)
 
         # Append epoch results to history
         history['epoch'].append(epoch)
@@ -102,8 +99,8 @@ def train_autoencoder(
             scheduler.step()
 
         # Save the parameters with the best validation loss
-        if val_loss - train_loss > best_loss_spread:
-            best_loss_spread = val_loss - train_loss
+        if train_loss < best_val_loss:
+            best_val_loss = train_loss
             torch.save(model.state_dict(), save_path)
 
     return history, model
@@ -136,9 +133,9 @@ def plot_metrics(history):
 def evaluate_autoencoder(
     model: nn.Module,
     criterion: nn.Module,
+    train_loader: DataLoader,
     test_loader: DataLoader,
     num_images: int,
-    chunk_size: int,
     visualize: bool = False
 ):
     model.eval()
@@ -148,22 +145,66 @@ def evaluate_autoencoder(
     reconstructed_images = []
 
     with torch.no_grad():
-        for inputs in test_loader:
-            inputs = inputs.to(device)
-            inputs = inputs.squeeze(0)
-            for input in inputs.chunk(chunk_size):
-                intput = input.squeeze(0)
-                output = model(input)
-                loss = criterion(output, input)
+        for inp in train_loader:
+            inp = inp.squeeze(0)
+            for inputs in inp:
+                inputs = inputs.unsqueeze(0)
+                inputs = inputs.to(device)
+                output = model(inputs)
+                loss = criterion(output, inputs)
 
                 total_loss += loss.item()
 
                 # Save some images for visualization
                 if len(original_images) < num_images:
-                    original_images.append(input.cpu())
+                    original_images.append(inputs.cpu())
                     reconstructed_images.append(torch.sigmoid(output.cpu()))
 
-    test_loss = total_loss / chunk_size / len(test_loader)
+    train_loss = total_loss / inp.size(0)
+
+    print(f'Train Loss: {train_loss:.4f}')
+
+    if visualize:
+        plt.figure(figsize=(15, 4))
+
+        for i in range(num_images):
+            # Original images
+            plt.subplot(2, num_images, i + 1)
+            img = original_images[i][0].permute(1, 2, 0).numpy()  # handle batch dimension
+            plt.imshow(np.clip(img, 0, 1))
+            plt.axis('off')
+            if i == 0:
+                plt.title('Original')
+
+            # Reconstructed images
+            plt.subplot(2, num_images, i + 1 + num_images)
+            img = reconstructed_images[i][0].permute(1, 2, 0).numpy()  # handle batch dimension
+            plt.imshow(np.clip(img, 0, 1))
+            plt.axis('off')
+            if i == 0:
+                plt.title('Reconstructed')
+
+        plt.show()
+
+    total_loss = 0.0
+
+    original_images = []
+    reconstructed_images = []
+
+    with torch.no_grad():
+        for inputs in test_loader:
+            inputs = inputs.to(device)
+            output = model(inputs)
+            loss = criterion(output, inputs)
+
+            total_loss += loss.item()
+
+            # Save some images for visualization
+            if len(original_images) < num_images:
+                original_images.append(inputs.cpu())
+                reconstructed_images.append(torch.sigmoid(output.cpu()))
+
+    test_loss = total_loss / len(test_loader)
 
     print(f'Test Loss: {test_loss:.4f}')
 
