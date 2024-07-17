@@ -44,7 +44,7 @@ def train_autoencoder(
     best_val_loss = float('inf')
 
     # Initialize grads to None for the first iteration
-    grads = None
+    # grads = None
 
     for epoch in range(num_epochs):
         # Training phase
@@ -61,7 +61,7 @@ def train_autoencoder(
                 output = model(input)
                 loss = criterion(output, input)
                 loss.backward()
-                grads = gradfilter_ema(model, grads=grads, alpha=0.98, lamb=2.0)
+                # grads = gradfilter_ema(model, grads=grads, alpha=0.98, lamb=2.0)
                 optimizer.step()
 
                 train_loss += loss.item()
