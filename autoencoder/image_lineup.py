@@ -50,10 +50,6 @@ def detect_T_shape(
     image_tensor = torchvision.transforms.functional.to_tensor(image).unsqueeze(0)
     top_corner_image = image_tensor[:, :, lower_y_bound:upper_y_bound, lower_x_bound:upper_x_bound]
     output = F.conv2d(top_corner_image, kernel)
-
-    plt.imshow(output.squeeze(0).moveaxis(0, 2).detach().cpu().numpy())
-    plt.show()
-
     max_value = output.max()
     best_match_location = (output == max_value).nonzero(as_tuple=True)
     batch_idx, channel_idx, y_coord, x_coord = best_match_location
@@ -102,27 +98,6 @@ def align_image(
 
     return aligned_image
 
-# Function to find the area with T-shape
-def view_T_shape(
-    image: Image.Image,
-    x_lb: int, x_ub: int,
-    y_lb: int, y_ub: int,
-    title: str = None
-):
-    # Convert the image to a numpy array for indexing
-    image_array = np.array(image)
-
-    # Extract the region
-    region = image_array[y_lb:y_ub, x_lb:x_ub]
-
-    # Display the extracted region
-    plt.imshow(region)
-    if title:
-        plt.title(title)
-    else:
-        plt.title("Region around T-shape")
-    plt.show()
-
 # Function to generate the convolution kernel
 def generate_T_kernel(
     t_shape: List[List[int]],
@@ -156,10 +131,75 @@ bottom_T_shape = [
     [1, 1, 1, 1, 1, 1, 1, 1],
 ]
 
-# Run Code
+# Function to take in an image and return an adjusted image
+def adjust_image(
+    image: Image.Image,
+    top_lower_bound: int,
+    top_upper_bound: int,
+    bottom_lower_bound: int,
+    bottom_upper_bound: int,
+    bound_range: int,
+    num_channels: int = 3,
+    view: bool = False
+) -> Image.Image:
+    # Adjust based on expected T-shape location
+    top_x_lb, top_x_ub = top_lower_bound, top_upper_bound
+    top_y_lb, top_y_ub = 0, bound_range
+    bottom_x_lb, bottom_x_ub = bottom_lower_bound, bottom_upper_bound
+    bottom_y_lb, bottom_y_ub = image.height - bound_range, image.height
+
+    # Generate the kernels
+    top_T_kernel = generate_T_kernel(top_T_shape, num_channels)
+    bottom_T_kernel = generate_T_kernel(bottom_T_shape, num_channels)
+
+    # Detect top and bottom T-shapes for the based image
+    expected_top_x, expected_top_y = detect_T_shape(image, top_x_lb, top_x_ub, top_y_lb, top_y_ub, top_T_kernel)
+    expected_bottom_x, expected_bottom_y = detect_T_shape(image, bottom_x_lb, bottom_x_ub, bottom_y_lb, bottom_y_ub, bottom_T_kernel)
+
+    # Hard-code the coordinates to the center of the T-shapes
+    expected_bottom_y = expected_bottom_y - bottom_T_kernel.shape[-2] + 1
+
+    # Detect top and bottom T-shapes for the transformed image
+    top_x, top_y = detect_T_shape(transformed_image, top_x_lb, top_x_ub, top_y_lb, top_y_ub, top_T_kernel)
+    bottom_x, bottom_y = detect_T_shape(transformed_image, bottom_x_lb, bottom_x_ub, bottom_y_lb, bottom_y_ub, bottom_T_kernel)
+
+    # Hard-code the coordinates to the center of the T-shapes
+    bottom_y = bottom_y - bottom_T_kernel.shape[-2] + 1
+
+    # Align the transformed image
+    adjusted_image = align_image(
+        image, top_x, top_y, bottom_x, bottom_y,
+        expected_top_x, expected_top_y, expected_bottom_x, expected_bottom_y
+    )
+
+    # Visualize the adjustments (optional)
+    if view:
+        img_arr = np.array(image)
+        adj_img_arr = np.array(adjusted_image)
+
+        fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+
+        axs[0, 0].imshow(img_arr[top_y_lb:top_y_ub, top_x_lb:top_x_ub])
+        axs[0, 0].axis('off')
+
+        axs[0, 1].imshow(adj_img_arr[top_y_lb:top_y_ub, top_x_lb:top_x_ub])
+        axs[0, 1].axis('off')
+
+        axs[1, 0].imshow(img_arr[bottom_y_lb:bottom_y_ub, bottom_x_lb:bottom_x_ub])
+        axs[1, 0].axis('off')
+
+        axs[1, 1].imshow(adj_img_arr[bottom_y_lb:bottom_y_ub, bottom_x_lb:bottom_x_ub])
+        axs[1, 1].axis('off')
+        
+        plt.tight_layout()
+        plt.show()
+
+    return adjusted_image
+
+# Run code
 if __name__ == "__main__":
     # Load the unperturbed image
-    image = Image.open(os.path.join(DATASET_PATH, 'unperturbed_data', 'HexaBoardExample.png'))
+    image = Image.open(os.path.join(DATASET_PATH, 'unperturbed_data', 'good_hexaboard.png'))
 
     # # Display the entire image
     # plt.imshow(image)
@@ -182,92 +222,18 @@ if __name__ == "__main__":
 
     # plt.show()
 
-    # Adjust based on expected T-shape location
-    tlb, tub = 378, 402
-    blb, bub = 401, 425
-    brange = 24
-
-    top_x_lb, top_x_ub = tlb, tub
-    top_y_lb, top_y_ub = 0, brange
-    bottom_x_lb, bottom_x_ub = blb, bub
-    bottom_y_lb, bottom_y_ub = image.height - brange, image.height
-
-    # # View the T-shapes of the based image
-    # view_T_shape(
-    #     image=image,
-    #     x_lb=top_x_lb, x_ub=top_x_ub,
-    #     y_lb=top_y_lb, y_ub=top_y_ub
-    # )
-    # view_T_shape(
-    #     image=image,
-    #     x_lb=bottom_x_lb, x_ub=bottom_x_ub,
-    #     y_lb=bottom_y_lb, y_ub=bottom_y_ub
-    # )
-
     # Load the transformed image
     transformed_image = Image.open(os.path.join(DATASET_PATH, 'transformed_data', 'transformed_image_1.png'))
     print("Shape of the Transformed Image:", transformed_image.size)
 
-    # # View the T-shapes of the transformed image
-    # view_T_shape(
-    #     image=transformed_image,
-    #     x_lb=top_x_lb, x_ub=top_x_ub,
-    #     y_lb=top_y_lb, y_ub=top_y_ub
-    # )
-    # view_T_shape(
-    #     image=transformed_image,
-    #     x_lb=bottom_x_lb, x_ub=bottom_x_ub,
-    #     y_lb=bottom_y_lb, y_ub=bottom_y_ub
-    # )
-
-    # Generate the kernels
-    num_channels = 3
-    top_T_kernel = generate_T_kernel(top_T_shape, num_channels)
-    bottom_T_kernel = generate_T_kernel(bottom_T_shape, num_channels)
-
-    # Detect top and bottom T-shapes for the based image
-    expected_top_x, expected_top_y = detect_T_shape(image, top_x_lb, top_x_ub, top_y_lb, top_y_ub, top_T_kernel)
-    expected_bottom_x, expected_bottom_y = detect_T_shape(image, bottom_x_lb, bottom_x_ub, bottom_y_lb, bottom_y_ub, bottom_T_kernel)
-
-    # Hard-code the coordinates to the center of the T-shapes
-    expected_bottom_y = expected_bottom_y - bottom_T_kernel.shape[-2] + 1
-
-    # Detect top and bottom T-shapes for the transformed image
-    top_x, top_y = detect_T_shape(transformed_image, top_x_lb, top_x_ub, top_y_lb, top_y_ub, top_T_kernel)
-    bottom_x, bottom_y = detect_T_shape(transformed_image, bottom_x_lb, bottom_x_ub, bottom_y_lb, bottom_y_ub, bottom_T_kernel)
-
-    # Hard-code the coordinates to the center of the T-shapes
-    bottom_y = bottom_y - bottom_T_kernel.shape[-2] + 1
-
-    # Align the transformed image
-    aligned_image = align_image(
-        transformed_image,
-        top_x, top_y, bottom_x, bottom_y,
-        expected_top_x, expected_top_y, expected_bottom_x, expected_bottom_y
-    )
-
-    # View the T-shapes of the based image and the realigned image for comparisons
-    view_T_shape(
-        image=image,
-        x_lb=top_x_lb, x_ub=top_x_ub,
-        y_lb=top_y_lb, y_ub=top_y_ub,
-        title='Top T of Based Image'
-    )
-    view_T_shape(
-        image=aligned_image,
-        x_lb=top_x_lb, x_ub=top_x_ub,
-        y_lb=top_y_lb, y_ub=top_y_ub,
-        title='Top T of Aligned Image'
-    )
-    view_T_shape(
-        image=image,
-        x_lb=bottom_x_lb, x_ub=bottom_x_ub,
-        y_lb=bottom_y_lb, y_ub=bottom_y_ub,
-        title='Bottom T of Based Image'
-    )
-    view_T_shape(
-        image=aligned_image,
-        x_lb=bottom_x_lb, x_ub=bottom_x_ub,
-        y_lb=bottom_y_lb, y_ub=bottom_y_ub,
-        title='Bottom T of Aligned Image'
+    # Adjust the transformed image
+    adjusted_image = adjust_image(
+        image=transformed_image,
+        top_lower_bound=378,
+        top_upper_bound=402,
+        bottom_lower_bound=401,
+        bottom_upper_bound=425,
+        bound_range=24,
+        num_channels=3,
+        view=True
     )

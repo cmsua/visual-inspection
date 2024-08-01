@@ -1,6 +1,11 @@
+# Import necessary dependencies
 import argparse
-import cv2
+
 import numpy as np
+import cv2
+
+from autoencoder.image_lineup import adjust_image
+
 
 class ScanResult():
     def __init__(self, base: np.ndarray, annotated: np.ndarray = None) -> None:
@@ -11,20 +16,19 @@ def run_inspection(image: np.ndarray) -> ScanResult:
     result = ScanResult(image)
     annotated = image.copy()
 
-    # Do things Here
-    # Do things Here
-    # Do things Here
+    # Do things here
 
     result.annotated = annotated
     return result
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-                    prog='Visual Inspection',
-                    description='Inspects Hexaboards for defects',
-                    epilog='University of Alabama')
+        prog='Visual Inspection',
+        description='Inspects Hexaboards for defects',
+        epilog='University of Alabama'
+    )
 
-    # Setup Arguments
+    # Set up arguments
     parser.add_argument('filename')
     parser.add_argument('-v', '--verbose', action='store_true')
 

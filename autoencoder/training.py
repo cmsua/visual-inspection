@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from tqdm.notebook import tqdm
 
 from grokfast import gradfilter_ema
 
@@ -51,7 +50,7 @@ def train_autoencoder(
         model.train()
         train_loss = 0.0
 
-        for inputs in tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs}", unit="batch"):
+        for inputs in train_loader:
             inputs = inputs.to(device)
             inputs = inputs.squeeze(0)
             for input in inputs.chunk(chunk_size):
