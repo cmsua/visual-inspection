@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from utils import *
+from autoencoder.utils import *
 
 # Define the custom transformation for rotations and segmentations
 class RotationAndSegmentationTransform:

@@ -134,6 +134,7 @@ bottom_T_shape = [
 # Function to take in an image and return an adjusted image
 def adjust_image(
     image: Image.Image,
+    expected_image: Image.Image,
     top_lower_bound: int,
     top_upper_bound: int,
     bottom_lower_bound: int,
@@ -153,15 +154,15 @@ def adjust_image(
     bottom_T_kernel = generate_T_kernel(bottom_T_shape, num_channels)
 
     # Detect top and bottom T-shapes for the based image
-    expected_top_x, expected_top_y = detect_T_shape(image, top_x_lb, top_x_ub, top_y_lb, top_y_ub, top_T_kernel)
-    expected_bottom_x, expected_bottom_y = detect_T_shape(image, bottom_x_lb, bottom_x_ub, bottom_y_lb, bottom_y_ub, bottom_T_kernel)
+    expected_top_x, expected_top_y = detect_T_shape(expected_image, top_x_lb, top_x_ub, top_y_lb, top_y_ub, top_T_kernel)
+    expected_bottom_x, expected_bottom_y = detect_T_shape(expected_image, bottom_x_lb, bottom_x_ub, bottom_y_lb, bottom_y_ub, bottom_T_kernel)
 
     # Hard-code the coordinates to the center of the T-shapes
     expected_bottom_y = expected_bottom_y - bottom_T_kernel.shape[-2] + 1
 
     # Detect top and bottom T-shapes for the transformed image
-    top_x, top_y = detect_T_shape(transformed_image, top_x_lb, top_x_ub, top_y_lb, top_y_ub, top_T_kernel)
-    bottom_x, bottom_y = detect_T_shape(transformed_image, bottom_x_lb, bottom_x_ub, bottom_y_lb, bottom_y_ub, bottom_T_kernel)
+    top_x, top_y = detect_T_shape(image, top_x_lb, top_x_ub, top_y_lb, top_y_ub, top_T_kernel)
+    bottom_x, bottom_y = detect_T_shape(image, bottom_x_lb, bottom_x_ub, bottom_y_lb, bottom_y_ub, bottom_T_kernel)
 
     # Hard-code the coordinates to the center of the T-shapes
     bottom_y = bottom_y - bottom_T_kernel.shape[-2] + 1
@@ -229,6 +230,7 @@ if __name__ == "__main__":
     # Adjust the transformed image
     adjusted_image = adjust_image(
         image=transformed_image,
+        expected_image=image,
         top_lower_bound=378,
         top_upper_bound=402,
         bottom_lower_bound=401,
