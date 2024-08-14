@@ -1,5 +1,6 @@
-import cv2
+# Import necessary dependencies
 import numpy as np
+import cv2
 
 def compare_images(img1_path, img2_path, output_path):
     # Load the two images
@@ -36,10 +37,9 @@ def compare_images(img1_path, img2_path, output_path):
     cv2.imwrite(output_path, img1)
     print(f"Differences highlighted and saved to {output_path}")
 
-# Image Path
+# Image paths
 img1_path = "/Users/brycewhite/Desktop/TestPictures/Hexa4.png"
 img2_path = "/Users/brycewhite/Desktop/TestPictures/Hexa4.1.png"
 output_path = "/Users/brycewhite/Desktop/TestPictures/outputsub.png"
 
 compare_images(img1_path, img2_path, output_path)
-

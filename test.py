@@ -1,8 +1,21 @@
-import cv2
+# Import necessary dependencies
+import os
+import sys
+
 import numpy as np
+import cv2
+
+# Directory path used in local
+project_dir = './'
+
+autoencoder_dir = os.path.join(project_dir, 'autoencoder')
+sys.path.append(autoencoder_dir)
+
+# Path to the datasets folder
+DATASET_PATH = os.path.join(project_dir, 'datasets')
 
 # Load the image
-image_path = "/Users/brycewhite/Desktop/TestPictures/Hexa4.png"
+image_path = os.path.join(DATASET_PATH, 'unperturbed_data', 'good_hexaboard.png')
 image = cv2.imread(image_path)
 
 # Convert to grayscale

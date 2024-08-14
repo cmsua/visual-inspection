@@ -1,16 +1,18 @@
-import cv2
+# Import necessary dependencies
+import os
+import shutil
+
 import numpy as np
 from PIL import Image
+import cv2
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import matplotlib.pyplot as plt
-import os
 from skimage.metrics import structural_similarity as ssim
 from sklearn.metrics import precision_recall_curve, roc_curve
 from sklearn.metrics import confusion_matrix
-import shutil
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -184,7 +186,7 @@ def evaluate_inspect(image_path1, image_path2):
     return measure_value
 
 def process_inspect(good_ssims,bad_ssims):
-    #Plat Histograms of SSIM Values
+    # Plot histograms of SSIM values
     _,bins,_ = plt.hist(good_ssims, density=1, histtype='step', bins=30, label='Good Event SSIM')
     plt.hist(bad_ssims, density=1, bins=bins, histtype='step', label='Bad Event SSIM',color='red')
     plt.xlabel('SSIM')
@@ -194,11 +196,11 @@ def process_inspect(good_ssims,bad_ssims):
     plt.legend()
     plt.show()
 
-    #Concate SSIMS value & create Labels
+    # Concatenate SSIMS value & create labels
     ssim = np.concatenate([good_ssims, bad_ssims])
     labels1 = np.concatenate([np.ones_like(good_ssims), np.zeros_like(bad_ssims)])
 
-    #Precision Recall Curve
+    # Precision Recall Curve
     precision, recall, pr_thresholds = precision_recall_curve(labels1, ssim)
     fpr, tpr, roc_thresholds = roc_curve(labels1, ssim)
 
@@ -280,4 +282,3 @@ process_inspect(good_ssims, bad_ssims)
 
 save_directory = "/Users/brycewhite/Desktop/TestPictures/flaggedsegments"
 os.makedirs(save_directory, exist_ok=True)
-

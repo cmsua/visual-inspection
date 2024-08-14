@@ -1,5 +1,6 @@
-import cv2
+# Import necessary dependencies
 import numpy as np
+import cv2
 
 # Load the image
 image_path = "/Users/brycewhite/Desktop/TestPictures/HexaArUcoTest2.png"

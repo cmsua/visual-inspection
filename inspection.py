@@ -125,7 +125,6 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         for inp in dataloader:
-            # inp = inp.squeeze(0)
             for input in inp:
                 input = input.to(device)
                 output = model(input)
