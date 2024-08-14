@@ -23,20 +23,28 @@ def detect_aruco_markers(image):
     aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
     parameters = cv2.aruco.DetectorParameters()
     corners, ids, _ = cv2.aruco.detectMarkers(image, aruco_dict, parameters=parameters)
+
     return corners, ids
 
 def bounding_box(image, corners, ids):
     if ids is not None:
         cv2.aruco.drawDetectedMarkers(image, corners, ids)
         marker_positions = [np.mean(corner[0], axis=0) for corner in corners]
+
         if len(marker_positions) == 4:
             marker_positions = np.array(marker_positions)
-            marker_positions = marker_positions[np.argsort(np.arctan2(marker_positions[:,1] - np.mean(marker_positions[:,1]), marker_positions[:,0] - np.mean(marker_positions[:,0])))]
+            marker_positions = marker_positions[np.argsort(np.arctan2(
+                marker_positions[:,1] - np.mean(marker_positions[:,1]),
+                marker_positions[:,0] - np.mean(marker_positions[:,0])
+            ))]
+
             for i in range(4):
                 start_point = tuple(marker_positions[i].astype(int))
                 end_point = tuple(marker_positions[(i+1) % 4].astype(int))
                 cv2.line(image, start_point, end_point, (0, 255, 0), 2)
+
             return marker_positions
+        
     return None
 
 def crop_to_bounding_box(image, marker_positions):
@@ -45,7 +53,9 @@ def crop_to_bounding_box(image, marker_positions):
         rect = cv2.boundingRect(pts)
         x, y, w, h = rect
         cropped = image[y:y+h, x:x+w].copy()
+
         return cropped
+    
     return None
 
 def get_segments_1(image, height, width, vertical_segments, horizontal_segments):
@@ -141,17 +151,21 @@ def compare_segments(segments1, segments2):
     assert len(segments1) == len(segments2), "Segment lists are not of the same length"
 
     differences = []
+
     for index, (seg1, seg2) in enumerate(zip(segments1, segments2)):
         img1 = np.array(seg1)
         img2 = np.array(seg2)
+
         if img1.shape != img2.shape:
             differences.append(index)
             continue
+
         diff = cv2.absdiff(img1, img2)
         enhanced_diff = cv2.convertScaleAbs(diff, alpha=3.0, beta=0)
         gray_diff = cv2.cvtColor(enhanced_diff, cv2.COLOR_BGR2GRAY)
         _, mask = cv2.threshold(gray_diff, 20, 255, cv2.THRESH_BINARY)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
         if contours:
             differences.append(index)
 
@@ -163,16 +177,19 @@ def process_image(image_path, num_vertical_segments, num_horizontal_segments):
     corners, ids = detect_aruco_markers(image)
     marker_positions = bounding_box(image, corners, ids)
     cropped_image = crop_to_bounding_box(image, marker_positions)
+
     if cropped_image is not None:
         height, width, _ = cropped_image.shape
         segments_1 = get_segments_1(image, height, width, num_vertical_segments, num_horizontal_segments)
         segments_2 = get_segments_2(image, height, width, num_vertical_segments, num_horizontal_segments)
         segments_3 = get_segments_3(image, height, width, num_vertical_segments, num_horizontal_segments)
         segments = segments_1 + segments_2 + segments_3
+
         return segments, cropped_image
+    
     return None, None
 
-def evaluate_inspect(image_path1, image_path2):
+def evaluate_inspection(image_path1, image_path2):
     # Load images
     img1 = cv2.imread(image_path1)
     img2 = cv2.imread(image_path2)
@@ -185,9 +202,9 @@ def evaluate_inspect(image_path1, image_path2):
     measure_value, _ = ssim(img1_gray, img2_gray, full=True)
     return measure_value
 
-def process_inspect(good_ssims,bad_ssims):
+def process_inspection(good_ssims, bad_ssims):
     # Plot histograms of SSIM values
-    _,bins,_ = plt.hist(good_ssims, density=1, histtype='step', bins=30, label='Good Event SSIM')
+    _, bins, _ = plt.hist(good_ssims, density=1, histtype='step', bins=30, label='Good Event SSIM')
     plt.hist(bad_ssims, density=1, bins=bins, histtype='step', label='Bad Event SSIM',color='red')
     plt.xlabel('SSIM')
 
@@ -213,6 +230,7 @@ def process_inspect(good_ssims,bad_ssims):
 
     for index in range(len(bad_ssims)):
         ssim = bad_ssims[index]
+
         if ssim <= optimal_threshold:
             element=differences[index]
             double_flag.append(element)
@@ -220,12 +238,12 @@ def process_inspect(good_ssims,bad_ssims):
     print(double_flag)
     
     for i in differences:
-        file_to_copy = '/Users/brycewhite/Desktop/TestPictures/segments/segment1_'+str(i)+'.png'
+        file_to_copy = '/Users/brycewhite/Desktop/TestPictures/segments/segment1_' + str(i) + '.png'
         destination = '/Users/brycewhite/Desktop/TestPictures/flaggedsegments'
         shutil.copy(file_to_copy, destination)
 
     for i in double_flag:
-        file_to_copy = '/Users/brycewhite/Desktop/TestPictures/segments/segment1_'+str(i)+'.png'
+        file_to_copy = '/Users/brycewhite/Desktop/TestPictures/segments/segment1_' + str(i) + '.png'
         destination = '/Users/brycewhite/Desktop/TestPictures/dbflaggedsegments'
         shutil.copy(file_to_copy, destination)
         
@@ -266,11 +284,10 @@ for i in range(len(segments1)):
     segments2_path = os.path.join(save_directory, f'segment2_{i}.png')
 
     if os.path.exists(segments1_path) and os.path.exists:
-        measure_value = evaluate_inspect(segments1_path, segments2_path)
+        measure_value = evaluate_inspection(segments1_path, segments2_path)
 
         if i in differences:
             bad_ssims.append(measure_value)
-            
         else:
             good_ssims.append(measure_value)
 
@@ -278,7 +295,7 @@ for i in range(len(segments1)):
 segments = '/Users/brycewhite/Desktop/TestPictures/segments'
 flaggedsegments = '/Users/brycewhite/Desktop/TestPictures/flaggedsegments'
 
-process_inspect(good_ssims, bad_ssims)
+process_inspection(good_ssims, bad_ssims)
 
 save_directory = "/Users/brycewhite/Desktop/TestPictures/flaggedsegments"
 os.makedirs(save_directory, exist_ok=True)

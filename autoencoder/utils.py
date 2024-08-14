@@ -1,6 +1,6 @@
 from torchvision import transforms
 
-
+# Function to get segments from the hexaboard
 def get_segments(image, height: int, width: int, vertical_segments: int, horizontal_segments: int, rotation: int | None = None):
     a = width / 2
     
