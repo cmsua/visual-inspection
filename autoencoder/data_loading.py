@@ -1,5 +1,6 @@
 # Import necessary libraries
 import os
+import sys
 from collections.abc import MutableSequence
 
 import numpy as np
@@ -9,7 +10,11 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from autoencoder.utils import *
+# Directory path used in local
+project_dir = './'
+sys.path.append(project_dir)
+
+from utils import get_segments
 
 # Define the custom transformation for rotations and segmentations
 class RotationAndSegmentationTransform:
