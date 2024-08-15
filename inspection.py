@@ -15,12 +15,12 @@ from autoencoder.data_loading import RotationAndSegmentationTransform, Hexaboard
 
 # Directory path used in local
 project_dir = './'
-
 autoencoder_dir = os.path.join(project_dir, 'autoencoder')
 sys.path.append(autoencoder_dir)
 
-# Path to the datasets folder
+# Paths
 DATASET_PATH = os.path.join(project_dir, 'datasets')
+RESULT_PATH = os.path.join(project_dir, 'results')
 CHECKPOINT_PATH = os.path.join(autoencoder_dir, 'small_ae.pt')
 
 # Specify the device to use the autoencoder model
