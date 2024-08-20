@@ -12,6 +12,7 @@ from torchvision import transforms
 
 from autoencoder.image_lineup import adjust_image
 from autoencoder.data_loading import RotationAndSegmentationTransform, HexaboardDataset, SimpleCNNAutoEncoder
+from utils import *
 
 # Directory path used in local
 project_dir = './'
@@ -59,77 +60,78 @@ if __name__ == "__main__":
 
     # # Parse
     # args = parser.parse_args()
-
-    # Get the directory to all images
-    image_dir = os.path.join(DATASET_PATH, 'unperturbed_data')
-    image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
-
-    # Adjust the images to the correct frame
-    for image_path in image_paths:
-        img = Image.open(image_path)
-        width, height = img.size
-        img = adjust_image(
-            image=img,
-            expected_image=img,
-            top_lower_bound=378,
-            top_upper_bound=402,
-            bottom_lower_bound=401,
-            bottom_upper_bound=425,
-            bound_range=24,
-            num_channels=3,
-            view=False
-        )
-        img.save(image_path)
-
+    
     # Adjust the number of segments
     # THIS SHOULD WORK WITH THE GUI
     NUM_VERTICAL_SEGMENTS = 20
     NUM_HORIZONTAL_SEGMENTS = 12
 
-    # Define the transformations
-    transform = transforms.Compose([
-        RotationAndSegmentationTransform(
-            height=height,
-            width=width,
-            vertical_segments=NUM_VERTICAL_SEGMENTS,
-            horizontal_segments=NUM_HORIZONTAL_SEGMENTS
-        ),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-    ])
+    # Get the directory to all images
+    image_dir = os.path.join(DATASET_PATH, 'raw_data')
+    image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
+    # remove_transparency(image_dir)  # only for first-time usage
 
-    # Read in and process the images
-    dataset = HexaboardDataset(
-        image_dir=image_dir,
-        transform=transform
-    )
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    # List of segments where segmentlist[i] is a list of all segments from one image
+    segmentList = []
 
-    # Get the segments' height and width
-    segment_height = dataset[0][0][0].shape[0]
-    segment_width = dataset[0][0][0].shape[1]
+    # Image processing steps
+    for image_path in image_paths:
+        # Read in the images
+        image = Image.open(image_path)
+        
+        # Crop the images based on ArUco markers
+        segments, cropped_image = process_image(image, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+        segmentList.append(segments)
 
-    # Load the autoencoder model
-    criterion = nn.BCEWithLogitsLoss()
-    model = SimpleCNNAutoEncoder(
-        height=segment_height,
-        width=segment_width,
-        latent_dim=128,
-        kernel_sizes=[64, 128]
-    )
-    model.to(device)
-    model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=device))
+    print(len(segmentList), type(segmentList[0]))
 
-    # Evaluate the segments
-    total_loss = 0
+    
+        
+    # # Define the transformations
+    # height, width, _ = cropped_image.shape
+    # transform = transforms.Compose([
+    #     RotationAndSegmentationTransform(
+    #         height=height,
+    #         width=width,
+    #         vertical_segments=NUM_VERTICAL_SEGMENTS,
+    #         horizontal_segments=NUM_HORIZONTAL_SEGMENTS
+    #     ),
+    #     transforms.RandomHorizontalFlip(),
+    #     transforms.RandomVerticalFlip(),
+    # ])
 
-    with torch.no_grad():
-        for inp in dataloader:
-            for input in inp:
-                input = input.to(device)
-                output = model(input)
-                loss = criterion(output, input)
-                total_loss += loss.item()
+    # # Read in and process the images
+    # dataset = HexaboardDataset(
+    #     image_dir=image_dir,
+    #     transform=transform
+    # )
+    # dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-    test_loss = total_loss / len(dataloader)
-    print(f'Test Loss: {test_loss:.4f}')
+    # # Get the segments' height and width
+    # segment_height = dataset[0][0][0].shape[0]
+    # segment_width = dataset[0][0][0].shape[1]
+
+    # # Load the autoencoder model
+    # criterion = nn.BCEWithLogitsLoss()
+    # model = SimpleCNNAutoEncoder(
+    #     height=segment_height,
+    #     width=segment_width,
+    #     latent_dim=128,
+    #     kernel_sizes=[64, 128]
+    # )
+    # model.to(device)
+    # model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=device))
+
+    # # Evaluate the segments
+    # total_loss = 0
+
+    # with torch.no_grad():
+    #     for inp in dataloader:
+    #         for input in inp:
+    #             input = input.to(device)
+    #             output = model(input)
+    #             loss = criterion(output, input)
+    #             total_loss += loss.item()
+
+    # test_loss = total_loss / len(dataloader)
+    # print(f'Test Loss: {test_loss:.4f}')

@@ -15,6 +15,8 @@ from skimage.metrics import structural_similarity as ssim
 from sklearn.metrics import precision_recall_curve, roc_curve
 from sklearn.metrics import confusion_matrix
 
+from autoencoder.image_lineup import adjust_image
+
 # Directory path used in local
 project_dir = './'
 autoencoder_dir = os.path.join(project_dir, 'autoencoder')
@@ -116,12 +118,12 @@ def compare_segments(segments1, segments2):
 
     differences = []
 
-    for index, (seg1, seg2) in enumerate(zip(segments1, segments2)):
+    for i, (seg1, seg2) in enumerate(zip(segments1, segments2)):
         img1 = np.array(seg1)
         img2 = np.array(seg2)
 
         if img1.shape != img2.shape:
-            differences.append(index)
+            differences.append(i)
             continue
 
         diff = cv2.absdiff(img1, img2)
@@ -131,33 +133,61 @@ def compare_segments(segments1, segments2):
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if contours:
-            differences.append(index)
+            differences.append(i)
 
     return differences
 
+# Function to remove the transparency channel
+def remove_transparency(
+    image_dir: str,
+):
+    image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
+
+    for image_path in image_paths:
+        img = Image.open(image_path)
+        img = np.array(img)
+        img = img[:, :, 0:3]
+        img = Image.fromarray(img)
+        img.save(image_path)
+
 # Function to return the list of segments and the cropped image
-def process_image(image_path, num_vertical_segments, num_horizontal_segments):
-    image = load_image(image_path)
+def process_image(image: Image.Image, num_vertical_segments: int, num_horizontal_segments: int):
+    image = np.array(image)
     corners, ids = detect_aruco_markers(image)
     marker_positions = bounding_box(image, corners, ids)
     cropped_image = crop_to_bounding_box(image, marker_positions)
 
+    # Adjust the images to the correct frame
+    cropped_image = Image.fromarray(cropped_image)
+    cropped_image = adjust_image(
+        image=cropped_image,
+        expected_image=cropped_image,
+        top_lower_bound=378,
+        top_upper_bound=402,
+        bottom_lower_bound=401,
+        bottom_upper_bound=425,
+        bound_range=24,
+        num_channels=3,
+        view=False
+    )
+
+    # Get the segments from each image
     if cropped_image is not None:
-        height, width, _ = cropped_image.shape
-        segments_1 = get_segments(image, height, width, num_vertical_segments, num_horizontal_segments)
-        segments_2 = get_segments(image, height, width, num_vertical_segments, num_horizontal_segments, 60)
-        segments_3 = get_segments(image, height, width, num_vertical_segments, num_horizontal_segments, 300)
+        width, height = cropped_image.size
+        segments_1 = get_segments(cropped_image, height, width, num_vertical_segments, num_horizontal_segments)
+        segments_2 = get_segments(cropped_image, height, width, num_vertical_segments, num_horizontal_segments, 60)
+        segments_3 = get_segments(cropped_image, height, width, num_vertical_segments, num_horizontal_segments, 300)
         segments = segments_1 + segments_2 + segments_3
 
         return segments, cropped_image
-    
+
     return None, None
 
 # Function to evaluate the inspection using SSIM
-def evaluate_inspection(image_path1, image_path2):
+def evaluate_inspection(segment1, segment2):
     # Load images
-    img1 = cv2.imread(image_path1)
-    img2 = cv2.imread(image_path2)
+    img1 = np.array(segment1)
+    img2 = np.array(segment2)
 
     # Convert to grayscale
     img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
@@ -165,6 +195,7 @@ def evaluate_inspection(image_path1, image_path2):
 
     # Calculate SSIM
     measure_value, _ = ssim(img1_gray, img2_gray, full=True)
+
     return measure_value
 
 # Function to flag bad segments and save them
@@ -215,9 +246,12 @@ def process_inspection(good_ssims, bad_ssims):
 
 if __name__ == "__main__":
     # Paths for input images and output comparison result
-    image_path = "/Users/brycewhite/Desktop/TestPictures/HexaArUcoTest3.png"
-    reference_image_path = "/Users/brycewhite/Desktop/TestPictures/HexaArUcoTest2.png"
-    output_image_path = "/Users/brycewhite/Desktop/TestPictures/outputsub.png"
+    image_path = os.path.join(DATASET_PATH, 'raw_data', 'hexaboard_01')
+    reference_image_path = os.path.join(DATASET_PATH, 'raw_data', 'hexaboard_02')
+
+    # Read the images
+    image = Image.open(image_path)
+    reference_image = Image.open(reference_image_path)
 
     # Ensure the save directory exists
     save_dir = os.path.join(RESULT_PATH, 'segments')
@@ -227,39 +261,22 @@ if __name__ == "__main__":
     NUM_HORIZONTAL_SEGMENTS = 12
 
     # Load and process the images
-    segments1, cropped_image1 = process_image(image_path, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
-    segments2, cropped_image2 = process_image(reference_image_path, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
-
-    # Save the segments from the first image
-    if segments1:
-        for i, segment in enumerate(segments1):
-            segment.save(os.path.join(save_dir, f'segment1_{i}.png'))
-
-    # Save the segments from the second image
-    if segments2:
-        for i, segment in enumerate(segments2):
-            segment.save(os.path.join(save_dir, f'segment2_{i}.png'))
+    segments1, cropped_image1 = process_image(image, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+    segments2, cropped_image2 = process_image(reference_image, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
 
     # Compare the segments and print differences
     differences = compare_segments(segments1, segments2)
     print(f"Found differences in segments: {differences}")
 
-    bad_ssims =[]
-    good_ssims =[]
+    bad_ssims = []
+    good_ssims = []
 
-    for i in range(len(segments1)):
-        segments1_path = os.path.join(save_dir, f'segment1_{i}.png')
-        segments2_path = os.path.join(save_dir, f'segment2_{i}.png')
+    for i, (segment1, segment2) in enumerate(zip(segments1, segments2)):
+        measure_value = evaluate_inspection(segments1, segments2)
 
-        if os.path.exists(segments1_path) and os.path.exists:
-            measure_value = evaluate_inspection(segments1_path, segments2_path)
-
-            if i in differences:
-                bad_ssims.append(measure_value)
-            else:
-                good_ssims.append(measure_value)
-
-    segments = os.path.join(RESULT_PATH, 'segments')
-    flagged_segments = os.path.join(RESULT_PATH, 'flagged_segments')
+        if i in differences:
+            bad_ssims.append(measure_value)
+        else:
+            good_ssims.append(measure_value)
 
     process_inspection(good_ssims, bad_ssims)
