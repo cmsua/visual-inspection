@@ -177,8 +177,9 @@ def adjust_image(
     if view:
         img_arr = np.array(image)
         adj_img_arr = np.array(adjusted_image)
+        exp_img_arr = np.array(expected_image)
 
-        fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+        fig, axs = plt.subplots(2, 3, figsize=(16, 10))
 
         axs[0, 0].imshow(img_arr[top_y_lb:top_y_ub, top_x_lb:top_x_ub])
         axs[0, 0].axis('off')
@@ -186,11 +187,17 @@ def adjust_image(
         axs[0, 1].imshow(adj_img_arr[top_y_lb:top_y_ub, top_x_lb:top_x_ub])
         axs[0, 1].axis('off')
 
+        axs[0, 2].imshow(exp_img_arr[top_y_lb:top_y_ub, top_x_lb:top_x_ub])
+        axs[0, 2].axis('off')
+
         axs[1, 0].imshow(img_arr[bottom_y_lb:bottom_y_ub, bottom_x_lb:bottom_x_ub])
         axs[1, 0].axis('off')
 
         axs[1, 1].imshow(adj_img_arr[bottom_y_lb:bottom_y_ub, bottom_x_lb:bottom_x_ub])
         axs[1, 1].axis('off')
+
+        axs[1, 2].imshow(exp_img_arr[bottom_y_lb:bottom_y_ub, bottom_x_lb:bottom_x_ub])
+        axs[1, 2].axis('off')
         
         plt.tight_layout()
         plt.show()
@@ -225,6 +232,7 @@ if __name__ == "__main__":
 
     # Load the transformed image
     transformed_image = Image.open(os.path.join(DATASET_PATH, 'transformed_data', 'transformed_image_1.png'))
+    
     print("Shape of the Transformed Image:", transformed_image.size)
 
     # Adjust the transformed image
