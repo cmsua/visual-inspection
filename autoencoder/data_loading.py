@@ -11,8 +11,8 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 
 # Directory path used in local
-project_dir = './'
-sys.path.append(project_dir)
+autoencoder_dir = './'
+sys.path.append(autoencoder_dir)
 
 from utils import get_segments
 

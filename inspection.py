@@ -5,10 +5,11 @@ import argparse
 from PIL import Image
 
 import numpy as np
+from skimage.metrics import structural_similarity as ssim
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torchvision import transforms
+from torchvision.transforms import ToTensor
 
 from autoencoder.image_lineup import adjust_image
 from autoencoder.data_loading import RotationAndSegmentationTransform, HexaboardDataset, SimpleCNNAutoEncoder
@@ -26,26 +27,6 @@ CHECKPOINT_PATH = os.path.join(autoencoder_dir, 'small_ae.pt')
 
 # Specify the device to use the autoencoder model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# class ScanResult():
-#     def __init__(self, base: np.ndarray, annotated: np.ndarray = None) -> None:
-#         self.base = base
-#         self.annotated = annotated
-
-# def run_inspection(image: Image.Image) -> ScanResult:
-#     # Adjust the image to the correct frame
-#     image = adjust_image(
-#         image,
-#         top_lower_bound=378,
-#         top_upper_bound=402,
-#         bottom_lower_bound=401,
-#         bottom_upper_bound=425,
-#         bound_range=24,
-#         num_channels=3,
-#         view=True
-#     )
-
-#     return image
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser(
@@ -67,7 +48,7 @@ if __name__ == "__main__":
     NUM_HORIZONTAL_SEGMENTS = 12
 
     # Get the directory to all images
-    image_dir = os.path.join(DATASET_PATH, 'raw_data')
+    image_dir = os.path.join(DATASET_PATH, 'raw_images')
     image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
     # remove_transparency(image_dir)  # only for first-time usage
 
@@ -75,44 +56,35 @@ if __name__ == "__main__":
     segmentList = []
 
     # Image processing steps
-    for image_path in image_paths:
+    for i, image_path in enumerate(image_paths):
         # Read in the images
         image = Image.open(image_path)
         
         # Crop the images based on ArUco markers
         segments, cropped_image = process_image(image, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+        # cropped_image.save(os.path.join(DATASET_PATH, 'unperturbed_images', f'hexaboard_{i + 1}.png'))
         segmentList.append(segments)
 
-    print(len(segmentList), type(segmentList[0]))
+    segments1, segments2 = segmentList[0], segmentList[1]
+    segment_width, segment_height = segments1[0].size
 
-    
-        
-    # # Define the transformations
-    # height, width, _ = cropped_image.shape
-    # transform = transforms.Compose([
-    #     RotationAndSegmentationTransform(
-    #         height=height,
-    #         width=width,
-    #         vertical_segments=NUM_VERTICAL_SEGMENTS,
-    #         horizontal_segments=NUM_HORIZONTAL_SEGMENTS
-    #     ),
-    #     transforms.RandomHorizontalFlip(),
-    #     transforms.RandomVerticalFlip(),
-    # ])
+    # # List of different segments based on indices
+    # flaggedP = compare_segments(segments1, segments2)
 
-    # # Read in and process the images
-    # dataset = HexaboardDataset(
-    #     image_dir=image_dir,
-    #     transform=transform
-    # )
-    # dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
+    # bad_ssims = []
+    # good_ssims = []
 
-    # # Get the segments' height and width
-    # segment_height = dataset[0][0][0].shape[0]
-    # segment_width = dataset[0][0][0].shape[1]
+    # for i, (segment1, segment2) in enumerate(zip(segments1, segments2)):
+    #     measure_value = evaluate_inspection(segments1, segments2)
+
+    #     if i in flaggedP:
+    #         bad_ssims.append(measure_value)
+    #     else:
+    #         good_ssims.append(measure_value)
+
+    # process_inspection(good_ssims, bad_ssims)
 
     # # Load the autoencoder model
-    # criterion = nn.BCEWithLogitsLoss()
     # model = SimpleCNNAutoEncoder(
     #     height=segment_height,
     #     width=segment_width,
@@ -123,15 +95,14 @@ if __name__ == "__main__":
     # model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=device))
 
     # # Evaluate the segments
-    # total_loss = 0
+    # flaggedML = []
+    # threshold = 0.4
 
-    # with torch.no_grad():
-    #     for inp in dataloader:
-    #         for input in inp:
-    #             input = input.to(device)
-    #             output = model(input)
-    #             loss = criterion(output, input)
-    #             total_loss += loss.item()
+    # for i, (seg1, seg2) in enumerate(zip(segments1, segments2)):
+    #     seg1, seg2 = ToTensor(seg1), ToTensor(seg2)
+    #     with torch.no_grad():
+    #         output = model(seg1).cpu().numpy()
+    #         if ssim(output, seg2) < threshold:
+    #             flaggedML.append(i)
 
-    # test_loss = total_loss / len(dataloader)
-    # print(f'Test Loss: {test_loss:.4f}')
+    # double_flagged = list(set(flaggedP) & set(flaggedML))

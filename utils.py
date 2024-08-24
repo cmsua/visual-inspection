@@ -223,31 +223,31 @@ def process_inspection(good_ssims, bad_ssims):
     optimal_threshold = roc_thresholds[optimal_idx]
     print(f"Optimal Threshold using SSIM: {optimal_threshold}")
 
-    double_flag = []
+    # double_flag = []
 
-    for i, ssim in enumerate(bad_ssims):
-        if ssim <= optimal_threshold:
-            element = differences[i]
-            double_flag.append(element)
+    # for i, ssim in enumerate(bad_ssims):
+    #     if ssim <= optimal_threshold:
+    #         element = differences[i]
+    #         double_flag.append(element)
 
-    print(double_flag)
+    # print(double_flag)
     
-    for i in differences:
-        filename = f'segment1_{i}.png'
-        file_to_copy = os.path.join(RESULT_PATH, 'segments', filename)
-        destination = os.path.join(RESULT_PATH, 'flagged_segments')
-        shutil.copy(file_to_copy, destination)
+    # for i in differences:
+    #     filename = f'segment1_{i}.png'
+    #     file_to_copy = os.path.join(RESULT_PATH, 'segments', filename)
+    #     destination = os.path.join(RESULT_PATH, 'flagged_segments')
+    #     shutil.copy(file_to_copy, destination)
 
-    for i in double_flag:
-        filename = f'segment1_{i}.png'
-        file_to_copy = os.path.join(RESULT_PATH, 'segments', filename)
-        destination = os.path.join(RESULT_PATH, 'db_flagged_segments')
-        shutil.copy(file_to_copy, destination)
+    # for i in double_flag:
+    #     filename = f'segment1_{i}.png'
+    #     file_to_copy = os.path.join(RESULT_PATH, 'segments', filename)
+    #     destination = os.path.join(RESULT_PATH, 'db_flagged_segments')
+    #     shutil.copy(file_to_copy, destination)
 
 if __name__ == "__main__":
     # Paths for input images and output comparison result
-    image_path = os.path.join(DATASET_PATH, 'raw_data', 'hexaboard_01')
-    reference_image_path = os.path.join(DATASET_PATH, 'raw_data', 'hexaboard_02')
+    image_path = os.path.join(DATASET_PATH, 'raw_images', 'hexaboard_01')
+    reference_image_path = os.path.join(DATASET_PATH, 'raw_images', 'hexaboard_02')
 
     # Read the images
     image = Image.open(image_path)
