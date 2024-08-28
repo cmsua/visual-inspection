@@ -136,17 +136,19 @@ class SimpleCNNAutoEncoder(nn.Module):
         self.kernel_sizes = kernel_sizes
         self.encoder = nn.ModuleList()
 
+        # Padding to make dimensions square or divisible by the necessary factor
+        self.padding = nn.ZeroPad2d((0, 3, 0, 0))  # Example padding, adjust as needed
+
         for i, (indim, outdim) in enumerate(zip([3] + kernel_sizes[:-1], kernel_sizes)):
-            layer = nn.Conv2d(indim, outdim, kernel_size=3, stride=2, padding=(outdim-3)%3)
+            layer = nn.Conv2d(indim, outdim, kernel_size=3, stride=2, padding=(outdim - 3) % 3)
             self.encoder.append(layer)
             self.encoder.append(nn.ReLU())
 
         self.encoder = nn.Sequential(*self.encoder)
 
         example_input = torch.randn(1, 3, height, width)
-        output = self.encoder(example_input)
+        output = self.encoder(self.padding(example_input))
         self.shape = output.shape
-
 
         self.bottleneck = nn.Linear(kernel_sizes[-1] * self.shape[2] * self.shape[3], latent_dim)
         self.unbottleneck = nn.Linear(latent_dim, kernel_sizes[-1] * self.shape[2] * self.shape[3])
@@ -155,9 +157,9 @@ class SimpleCNNAutoEncoder(nn.Module):
 
         for i, (indim, outdim) in enumerate(zip(kernel_sizes[::-1], kernel_sizes[:-1][::-1] + [3])):
             if i == len(kernel_sizes) - 2:
-                layer = nn.ConvTranspose2d(indim, outdim, kernel_size=3, stride=2, padding=(indim - 3) % 3, output_padding=(1, 0))
-            else:
                 layer = nn.ConvTranspose2d(indim, outdim, kernel_size=3, stride=2, padding=(indim - 3) % 3)
+            else:
+                layer = nn.ConvTranspose2d(indim, outdim, kernel_size=3, stride=2, padding=(indim - 3) % 3, output_padding=1)
             self.decoder.append(layer)
             if i < len(kernel_sizes) - 1:
                 self.decoder.append(nn.ReLU())
@@ -166,10 +168,12 @@ class SimpleCNNAutoEncoder(nn.Module):
 
     def forward(self, x):
         batch, _, _, _ = x.shape
+        x = self.padding(x)  # Apply padding
         x = self.encoder(x)
         x = x.view(batch, -1)
         x = self.bottleneck(x)
         x = self.unbottleneck(x)
         x = x.view(batch, self.kernel_sizes[-1], self.shape[2], self.shape[3])
         x = self.decoder(x)
+        x = x[:, :, :, :-3]  # Remove the padding from the width
         return x
