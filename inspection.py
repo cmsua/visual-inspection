@@ -6,13 +6,11 @@ from PIL import Image
 
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
+import cv2
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor
 
-from autoencoder.image_lineup import adjust_image
-from autoencoder.data_loading import RotationAndSegmentationTransform, HexaboardDataset, SimpleCNNAutoEncoder
+from autoencoder.data_loading import SimpleCNNAutoEncoder
 from utils import *
 
 # Directory path used in local
@@ -68,8 +66,8 @@ if __name__ == "__main__":
     segments1, segments2 = segmentList[0], segmentList[1]
     segment_width, segment_height = segments1[0].size
 
-    # # List of different segments based on indices
-    # flaggedP = compare_segments(segments1, segments2)
+    # List of different segments based on indices
+    flaggedP = compare_segments(segments1, segments2)
 
     # bad_ssims = []
     # good_ssims = []
@@ -84,25 +82,34 @@ if __name__ == "__main__":
 
     # process_inspection(good_ssims, bad_ssims)
 
-    # # Load the autoencoder model
-    # model = SimpleCNNAutoEncoder(
-    #     height=segment_height,
-    #     width=segment_width,
-    #     latent_dim=128,
-    #     kernel_sizes=[64, 128]
-    # )
-    # model.to(device)
-    # model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=device))
+    # Load the autoencoder model
+    model = SimpleCNNAutoEncoder(
+        height=segment_height,
+        width=segment_width,
+        latent_dim=128,
+        kernel_sizes=[64, 128]
+    )
+    model.to(device)
+    model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=device))
 
-    # # Evaluate the segments
-    # flaggedML = []
-    # threshold = 0.4
+    # Evaluate the segments
+    flaggedML = []
+    threshold = 0.4
 
-    # for i, (seg1, seg2) in enumerate(zip(segments1, segments2)):
-    #     seg1, seg2 = ToTensor(seg1), ToTensor(seg2)
-    #     with torch.no_grad():
-    #         output = model(seg1).cpu().numpy()
-    #         if ssim(output, seg2) < threshold:
-    #             flaggedML.append(i)
+    for i, (seg1, seg2) in enumerate(zip(segments1, segments2)):
+        seg1 = ToTensor()(seg1).unsqueeze(0)
+        seg2 = np.array(seg2)
 
-    # double_flagged = list(set(flaggedP) & set(flaggedML))
+        with torch.no_grad():
+            output = model(seg1).cpu().squeeze().permute(1, 2, 0).numpy()
+            output = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
+            seg2 = cv2.cvtColor(seg2, cv2.COLOR_BGR2GRAY)
+
+            # SSIM metric
+            ssim_val, _ = ssim(output, seg2, full=True, data_range=output.max() - output.min())
+
+            if ssim_val < threshold:
+                flaggedML.append(i)
+
+    double_flagged = list(set(flaggedP) & set(flaggedML))
+    print(double_flagged)

@@ -206,20 +206,15 @@ def adjust_image(
 
 # Run code
 if __name__ == "__main__":
-    # Load the unperturbed image
-    image = Image.open(os.path.join(DATASET_PATH, 'unperturbed_data', 'good_hexaboard.png'))
-
-    # # Display the entire image
-    # plt.imshow(image)
-    # plt.title("Full HexaBoard Image")
-    # plt.show()
+    # Load the perturbed image
+    image = Image.open(os.path.join(DATASET_PATH, 'perturbed_images', 'hexaboard_1.png'))
 
     # # Generate and display random transformations
     # transformed_images = [random_tranform(image) for _ in range(4)]
 
     # # Save the images
     # for i, img in enumerate(transformed_images):
-    #     img.save(os.path.join(DATASET_PATH, 'transformed_data', f"transformed_image_{i+1}.png"))
+    #     img.save(os.path.join(DATASET_PATH, 'transformed_images', f"transformed_image_{i+1}.png"))
 
     # # Display the images
     # fig, axes = plt.subplots(1, 4, figsize=(20, 5))
@@ -231,7 +226,12 @@ if __name__ == "__main__":
     # plt.show()
 
     # Load the transformed image
-    transformed_image = Image.open(os.path.join(DATASET_PATH, 'transformed_data', 'transformed_image_1.png'))
+    transformed_image = Image.open(os.path.join(DATASET_PATH, 'transformed_images', 'transformed_image_1.png'))
+
+    # Display the entire image
+    plt.imshow(transformed_image)
+    plt.title("Full Hexaboard Image")
+    plt.show()
     
     print("Shape of the Transformed Image:", transformed_image.size)
 
@@ -239,10 +239,10 @@ if __name__ == "__main__":
     adjusted_image = adjust_image(
         image=transformed_image,
         expected_image=image,
-        top_lower_bound=378,
-        top_upper_bound=402,
-        bottom_lower_bound=401,
-        bottom_upper_bound=425,
+        top_lower_bound=504,
+        top_upper_bound=528,
+        bottom_lower_bound=532,
+        bottom_upper_bound=556,
         bound_range=24,
         num_channels=3,
         view=True
