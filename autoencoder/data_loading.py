@@ -70,64 +70,6 @@ class HexaboardDataset(Dataset):
         return image
 
 # Model architecture
-class ConvAutoEncoder(nn.Module):
-    def __init__(self, in_channels: int, height: int, width: int, latent_dim: int, kernel_sizes: MutableSequence[int]):
-        super(ConvAutoEncoder, self).__init__()
-        self.in_channels = in_channels
-        self.height = height
-        self.width = width
-        self.latent_dim = latent_dim
-        self.kernel_sizes = kernel_sizes
-
-        # Encoder
-        encoder_layers = []
-
-        for out_channels in self.kernel_sizes:
-            encoder_layers.append(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2))
-            encoder_layers.append(nn.ReLU(True))
-            in_channels = out_channels
-
-        self.encoder = nn.Sequential(*encoder_layers)
-
-        example_input = torch.randn(1, self.in_channels, height, width)
-        with torch.no_grad():
-            output = self.encoder(example_input)
-        self.shape = output.shape
-
-        # Flatten to go into latent space
-        self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(self.kernel_sizes[-1] * self.shape[2] * self.shape[3], latent_dim)
-
-        # Latent space
-        self.fc2 = nn.Linear(latent_dim, self.kernel_sizes[-1] * self.shape[2] * self.shape[3])
-        self.unflatten = nn.Unflatten(1, (self.kernel_sizes[-1], self.shape[2], self.shape[3]))
-
-        # Decoder
-        decoder_layers = []
-
-        for i, out_channels in enumerate(self.kernel_sizes[::-1]):
-            in_channels = self.kernel_sizes[::-1][i - 1] if i > 0 else self.kernel_sizes[-1]
-            if i == len(self.kernel_sizes) - 1:
-                out_channels = self.in_channels
-                decoder_layers.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size=3, stride=2))
-                break
-            decoder_layers.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size=3, stride=2, output_padding=(0, 1)))
-            decoder_layers.append(nn.ReLU(True))
-
-        self.decoder = nn.Sequential(*decoder_layers)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Encoding
-        x = self.encoder(x)
-        x = self.flatten(x)
-        x = self.fc1(x)
-
-        # Decoding
-        x = self.fc2(x)
-        x = self.unflatten(x)
-        x = self.decoder(x)
-        return x
-
 class SimpleCNNAutoEncoder(nn.Module):
     def __init__(self, height, width, latent_dim, kernel_sizes):
         super(SimpleCNNAutoEncoder, self).__init__()
@@ -137,16 +79,17 @@ class SimpleCNNAutoEncoder(nn.Module):
         self.encoder = nn.ModuleList()
 
         # Padding to make dimensions square or divisible by the necessary factor
-        self.padding = nn.ZeroPad2d((0, 3, 0, 0))  # Example padding, adjust as needed
+        self.padding = nn.ZeroPad2d((0, 0, 0, 3))  # Example padding, adjust as needed
 
         for i, (indim, outdim) in enumerate(zip([3] + kernel_sizes[:-1], kernel_sizes)):
-            layer = nn.Conv2d(indim, outdim, kernel_size=3, stride=2, padding=(outdim - 3) % 3)
+            layer = nn.Conv2d(indim, outdim, kernel_size=3, stride=2)
             self.encoder.append(layer)
             self.encoder.append(nn.ReLU())
 
         self.encoder = nn.Sequential(*self.encoder)
 
         example_input = torch.randn(1, 3, height, width)
+        # output = self.encoder(example_input)
         output = self.encoder(self.padding(example_input))
         self.shape = output.shape
 
@@ -157,9 +100,9 @@ class SimpleCNNAutoEncoder(nn.Module):
 
         for i, (indim, outdim) in enumerate(zip(kernel_sizes[::-1], kernel_sizes[:-1][::-1] + [3])):
             if i == len(kernel_sizes) - 2:
-                layer = nn.ConvTranspose2d(indim, outdim, kernel_size=3, stride=2, padding=(indim - 3) % 3)
+                layer = nn.ConvTranspose2d(indim, outdim, kernel_size=3, stride=2)
             else:
-                layer = nn.ConvTranspose2d(indim, outdim, kernel_size=3, stride=2, padding=(indim - 3) % 3, output_padding=1)
+                layer = nn.ConvTranspose2d(indim, outdim, kernel_size=3, stride=2)
             self.decoder.append(layer)
             if i < len(kernel_sizes) - 1:
                 self.decoder.append(nn.ReLU())
@@ -175,5 +118,5 @@ class SimpleCNNAutoEncoder(nn.Module):
         x = self.unbottleneck(x)
         x = x.view(batch, self.kernel_sizes[-1], self.shape[2], self.shape[3])
         x = self.decoder(x)
-        x = x[:, :, :, :-3]  # Remove the padding from the width
+        x = x[:, :, :-1, :]  # Remove the padding from the width
         return x
