@@ -1,19 +1,14 @@
 # Import necessary dependencies
 import os
 import sys
-import shutil
 from PIL import Image
 
 import numpy as np
 import cv2
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
 from torchvision import transforms
 import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as ssim
 from sklearn.metrics import precision_recall_curve, roc_curve
-from sklearn.metrics import confusion_matrix
 
 from autoencoder.image_lineup import adjust_image
 
@@ -162,10 +157,10 @@ def process_image(image: Image.Image, num_vertical_segments: int, num_horizontal
     cropped_image = adjust_image(
         image=cropped_image,
         expected_image=cropped_image,
-        top_lower_bound=378,
-        top_upper_bound=402,
-        bottom_lower_bound=401,
-        bottom_upper_bound=425,
+        top_lower_bound=504,
+        top_upper_bound=528,
+        bottom_lower_bound=532,
+        bottom_upper_bound=556,
         bound_range=24,
         num_channels=3,
         view=False

@@ -10,7 +10,7 @@ import cv2
 import torch
 from torchvision.transforms import ToTensor
 
-from autoencoder.data_loading import SimpleCNNAutoEncoder
+from autoencoder import SimpleCNNAutoEncoder
 from utils import *
 
 # Directory path used in local
@@ -63,17 +63,17 @@ if __name__ == "__main__":
         # cropped_image.save(os.path.join(DATASET_PATH, 'unperturbed_images', f'hexaboard_{i + 1}.png'))
         segmentList.append(segments)
 
-    segments1, segments2 = segmentList[0], segmentList[1]
-    segment_width, segment_height = segments1[0].size
+    newSegments, baselineSegments = segmentList[0], segmentList[1]
+    segment_width, segment_height = newSegments[0].size
 
     # List of different segments based on indices
-    flaggedP = compare_segments(segments1, segments2)
+    flaggedP = compare_segments(newSegments, baselineSegments)
 
     # bad_ssims = []
     # good_ssims = []
 
-    # for i, (segment1, segment2) in enumerate(zip(segments1, segments2)):
-    #     measure_value = evaluate_inspection(segments1, segments2)
+    # for i, (segment1, segment2) in enumerate(zip(newSegments, baselineSegments)):
+    #     measure_value = evaluate_inspection(newSegments, baselineSegments)
 
     #     if i in flaggedP:
     #         bad_ssims.append(measure_value)
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     flaggedML = []
     threshold = 0.4
 
-    for i, (seg1, seg2) in enumerate(zip(segments1, segments2)):
+    for i, (seg1, seg2) in enumerate(zip(newSegments, baselineSegments)):
         seg1 = ToTensor()(seg1).unsqueeze(0)
         seg2 = np.array(seg2)
 
@@ -111,5 +111,8 @@ if __name__ == "__main__":
             if ssim_val < threshold:
                 flaggedML.append(i)
 
-    double_flagged = list(set(flaggedP) & set(flaggedML))
+    double_flagged = sorted(list(set(flaggedP) & set(flaggedML)))
+    ml_flagged = set(flaggedML) - set(double_flagged) 
+    pixel_flagged = set(flaggedP) - set(double_flagged)
+    all_flagged = sorted(list(set(flaggedML).union(flaggedP)))
     print(double_flagged)

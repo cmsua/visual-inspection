@@ -1,7 +1,5 @@
 # Import necessary libraries
 import os
-import sys
-from collections.abc import MutableSequence
 
 import numpy as np
 from PIL import Image
@@ -9,10 +7,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
 from torchvision import transforms
-
-# Directory path used in local
-autoencoder_dir = './'
-sys.path.append(autoencoder_dir)
 
 from utils import get_segments
 
