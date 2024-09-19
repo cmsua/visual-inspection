@@ -1,6 +1,5 @@
 # Import necessary dependencies
 import os
-import sys
 from PIL import Image
 
 import numpy as np
@@ -14,8 +13,8 @@ from autoencoder.image_lineup import adjust_image
 
 # Directory path used in local
 project_dir = './'
-autoencoder_dir = os.path.join(project_dir, 'autoencoder')
-sys.path.append(autoencoder_dir)
+# autoencoder_dir = os.path.join(project_dir, 'autoencoder')
+# sys.path.append(autoencoder_dir)
 
 # Paths
 DATASET_PATH = os.path.join(project_dir, 'datasets')

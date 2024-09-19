@@ -1,5 +1,4 @@
 # Import necessary libraries
-import os
 from typing import List, Dict, Tuple, Optional
 
 import numpy as np
@@ -8,8 +7,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-
-from grokfast import gradfilter_ema
 
 # Set the seed
 torch.manual_seed(42)
@@ -42,9 +39,6 @@ def train_autoencoder(
     }  # initialize a dictionary to store epoch-wise results
     best_val_loss = float('inf')
 
-    # Initialize grads to None for the first iteration
-    # grads = None
-
     for epoch in range(num_epochs):
         # Training phase
         model.train()
@@ -60,7 +54,6 @@ def train_autoencoder(
                 output = model(input)
                 loss = criterion(output, input)
                 loss.backward()
-                # grads = gradfilter_ema(model, grads=grads, alpha=0.98, lamb=2.0)
                 optimizer.step()
 
                 train_loss += loss.item()
