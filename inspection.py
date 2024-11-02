@@ -10,7 +10,8 @@ import torch
 from torchvision.transforms import ToTensor
 
 from autoencoder import SimpleCNNAutoEncoder
-from utils import *
+from preprocessing import process_image
+from pixelwise_inspect import compare_segments
 
 # Directory path used in local
 project_dir = './'
