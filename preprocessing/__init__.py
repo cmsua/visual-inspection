@@ -1,2 +1,0 @@
-from preprocessing.process_image import process_image
-from preprocessing.get_segments import get_segments
