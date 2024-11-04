@@ -1,2 +1,2 @@
-from .data_loading import *
-from .training import *
+from autoencoder.training import train_autoencoder, evaluate_autoencoder
+from autoencoder.model import SimpleCNNAutoEncoder
