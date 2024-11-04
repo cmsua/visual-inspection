@@ -1,7 +1,6 @@
 # Import necessary dependencies
 import os
 import sys
-from PIL import Image
 
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
@@ -10,7 +9,7 @@ import torch
 from torchvision.transforms import ToTensor
 
 from autoencoder import SimpleCNNAutoEncoder
-from utils import *
+from pixelwise_inspect import pw_inference
 
 # Directory path used in local
 project_dir = './'
@@ -49,24 +48,9 @@ if __name__ == "__main__":
     image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
     # remove_transparency(image_dir)  # only for first-time usage
 
-    # List of segments where segmentlist[i] is a list of all segments from one image
-    segmentList = []
-
-    # Image processing steps
-    for i, image_path in enumerate(image_paths):
-        # Read in the images
-        image = Image.open(image_path)
-        
-        # Crop the images based on ArUco markers
-        segments, cropped_image = process_image(image, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
-        # cropped_image.save(os.path.join(DATASET_PATH, 'unperturbed_images', f'hexaboard_{i + 1}.png'))
-        segmentList.append(segments)
-
-    newSegments, baselineSegments = segmentList[0], segmentList[1]
+    flaggedP, segmentList, newSegments, baselineSegments = pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+    
     segment_width, segment_height = newSegments[0].size
-
-    # List of different segments based on indices
-    flaggedP = compare_segments(newSegments, baselineSegments)
 
     # bad_ssims = []
     # good_ssims = []
