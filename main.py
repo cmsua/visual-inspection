@@ -9,7 +9,7 @@ import torch
 from torchvision.transforms import ToTensor
 
 from autoencoder import SimpleCNNAutoEncoder
-from pixelwise_inspect import pw_inference
+from pixelwise_inspect.pw_inference import pw_inference
 
 # Directory path used in local
 project_dir = './'

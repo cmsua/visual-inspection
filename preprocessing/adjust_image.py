@@ -5,7 +5,10 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-from adjust_utils import detect_T_shape, align_image, generate_T_kernel  
+from adjust_utils import random_tranform, detect_T_shape, align_image, generate_T_kernel
+
+# Path to the datasets folder
+DATASET_PATH = './datasets'
 
 # Define the T-shape kernels
 top_T_shape = [
@@ -42,6 +45,23 @@ def adjust_image(
     num_channels: int = 3,
     view: bool = False
 ) -> Image.Image:
+    """
+    Adjusts an image to align it based on detected T-shape patterns by matching them to the expected image.
+
+    Args:
+        image (Image.Image): The input image to adjust.
+        expected_image (Image.Image): The reference image with the expected T-shape positions.
+        top_lower_bound (int): Lower bound of the x-coordinate range for detecting the top T-shape.
+        top_upper_bound (int): Upper bound of the x-coordinate range for detecting the top T-shape.
+        bottom_lower_bound (int): Lower bound of the x-coordinate range for detecting the bottom T-shape.
+        bottom_upper_bound (int): Upper bound of the x-coordinate range for detecting the bottom T-shape.
+        bound_range (int): Height range for detecting the top and bottom T-shapes in the image.
+        num_channels (int, optional): Number of channels in the image. Defaults to 3.
+        view (bool, optional): Whether to visualize the alignment process. Defaults to False.
+
+    Returns:
+        adjusted_image (Image.Image): The adjusted image aligned with the reference image.
+    """
     # Adjust based on expected T-shape location
     top_x_lb, top_x_ub = top_lower_bound, top_upper_bound
     top_y_lb, top_y_ub = 0, bound_range
@@ -102,3 +122,47 @@ def adjust_image(
         plt.show()
 
     return adjusted_image
+
+# Run code
+if __name__ == "__main__":
+    # Load the perturbed image
+    image = Image.open(os.path.join(DATASET_PATH, 'perturbed_images', 'hexaboard_1.png'))
+
+    # # Generate and display random transformations
+    # transformed_images = [random_tranform(image) for _ in range(4)]
+
+    # # Save the images
+    # for i, img in enumerate(transformed_images):
+    #     img.save(os.path.join(DATASET_PATH, 'transformed_images', f"transformed_image_{i+1}.png"))
+
+    # # Display the images
+    # fig, axes = plt.subplots(1, 4, figsize=(20, 5))
+
+    # for ax, img in zip(axes, transformed_images):
+    #     ax.imshow(img)
+    #     ax.axis('off')
+
+    # plt.show()
+
+    # Load the transformed image
+    transformed_image = Image.open(os.path.join(DATASET_PATH, 'transformed_images', 'transformed_image_1.png'))
+
+    # Display the entire image
+    plt.imshow(transformed_image)
+    plt.title("Full Hexaboard Image")
+    plt.show()
+    
+    print("Shape of the Transformed Image:", transformed_image.size)
+
+    # Adjust the transformed image
+    adjusted_image = adjust_image(
+        image=transformed_image,
+        expected_image=image,
+        top_lower_bound=504,
+        top_upper_bound=528,
+        bottom_lower_bound=532,
+        bottom_upper_bound=556,
+        bound_range=24,
+        num_channels=3,
+        view=True
+    )

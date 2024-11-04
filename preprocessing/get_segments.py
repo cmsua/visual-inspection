@@ -1,8 +1,30 @@
-import os
-
+# Import necessary dependencies
+from typing import List, Optional
+from PIL import Image
 from torchvision import transforms
 
-def get_segments(image, height: int, width: int, vertical_segments: int, horizontal_segments: int, rotation: int | None = None):
+# Function to get segments from an image using 3 rotations
+def get_segments(
+    image: Image.Image, height: int, width: int,
+    vertical_segments: int, horizontal_segments: int,
+    rotation: Optional[int] = None
+) -> List[Image.Image]:
+    """
+    Splits an image into smaller segments based on specified vertical and horizontal segments, 
+    optionally applying a rotation.
+
+    Args:
+        image (Image.Image): The input PIL image to segment.
+        height (int): The height of the region to crop from the image.
+        width (int): The width of the region to crop from the image.
+        vertical_segments (int): Number of vertical segments to split the image into.
+        horizontal_segments (int): Number of horizontal segments to split the image into.
+        rotation (Optional[int], optional): Rotation angle in degrees to apply to the image.
+                                            If None, no rotation is applied. Defaults to None.
+
+    Returns:
+        segments (List[Image.Image]): A list of segmented image patches.
+    """
     a = width / 2
     
     # Transform and crop image
