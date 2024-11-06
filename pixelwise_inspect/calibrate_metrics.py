@@ -1,40 +1,52 @@
 # Import necessary dependencies
-import os
+from typing import List, Tuple
+from PIL import Image
 
-from calibrate_utils import evaluate_inspection, process_inspection
+import numpy as np
+from pixelwise_inspect.calibrate_utils import evaluate_inspection, process_inspection
 
-# Directory path used in local
-project_dir = './'
-# autoencoder_dir = os.path.join(project_dir, 'autoencoder')
-# sys.path.append(autoencoder_dir)
+# General function to evaluate SSIM for good and bad segments
+def calibrate_metrics(
+    segments1: List[Image.Image],
+    segments2: List[Image.Image],
+    differences: List[int]
+) -> Tuple[float, List, List]:
+    """
+    Calibrates inspection metrics by evaluating the SSIM for good and bad segments and determining an optimal threshold.
 
-# Paths
-RESULT_PATH = os.path.join(project_dir, 'results')
+    Args:
 
-def calibrate_metrics(segments1, segments2, differences):
+        segments1 (List[Image.Image]): List of image segments from the first set.
+        segments2 (List[Image.Image]): List of image segments from the second set.
+        differences (List[int]): Indices indicating segments that have differences.
 
-    # Ensure the save directory exists
-    save_dir = os.path.join(RESULT_PATH, 'segments')
-    os.makedirs(save_dir, exist_ok=True)
-
+    Returns:
+        (optimal_threshold, bad_values, good_values) (Tuple[float, List, List]):
+            - Optimal SSIM threshold for classifying segments.
+            - List of bad SSIM values and their corresponding segment pairs.
+            - List of good SSIM values and their corresponding segment pairs.
+    """
     bad_ssims = []
     good_ssims = []
     bad_segments = []
     good_segments = []
 
     for i, (segment1, segment2) in enumerate(zip(segments1, segments2)):
-        measure_value = evaluate_inspection(segments1, segments2)
+        segment1, segment2 = np.array(segment1), np.array(segment2)
+        measure_value = evaluate_inspection(segment1, segment2)
 
         if i in differences:
             bad_ssims.append(measure_value)
-            bad_segments.append(segments1, segments2)
+            bad_segments.append((segment1, segment2))
         else:
             good_ssims.append(measure_value)
-            good_segments.append(segments1, segments2)
+            good_segments.append((segment1, segment2))
 
-    optimal_threshold = process_inspection(good_ssims, bad_ssims)
+    # Process the inspection to find the optimal SSIM threshold
+    optimal_threshold = process_inspection(np.array(good_ssims), np.array(bad_ssims))
     
-    bad_values = zip(bad_ssims, bad_segments)
-    good_values = zip(good_ssims, good_segments)
+    # Pair the SSIM values with their respective segments
+    bad_values = list(zip(bad_ssims, bad_segments))
+    good_values = list(zip(good_ssims, good_segments))
 
     return optimal_threshold, bad_values, good_values

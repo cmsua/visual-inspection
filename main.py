@@ -8,7 +8,7 @@ import cv2
 import torch
 from torchvision.transforms import ToTensor
 
-from autoencoder import SimpleCNNAutoEncoder
+from autoencoder.model import SimpleCNNAutoEncoder
 from pixelwise_inspect.pw_inference import pw_inference
 # from pixelwise_inspect.opt_sort import opt_sort
 
@@ -103,4 +103,3 @@ if __name__ == "__main__":
     pixel_flagged = set(flaggedP) - set(double_flagged)
     all_flagged = sorted(list(set(flaggedML).union(flaggedP)))
     print(double_flagged)
-    

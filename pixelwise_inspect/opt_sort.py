@@ -1,5 +1,3 @@
-import os
-
 def opt_sort(optimal_threshold, values):
 
     opt_good = []
