@@ -5,7 +5,7 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-from adjust_utils import random_tranform, detect_T_shape, align_image, generate_T_kernel
+from preprocessing.adjust_utils import random_tranform, detect_T_shape, align_image, generate_T_kernel
 
 # Path to the datasets folder
 DATASET_PATH = './datasets'

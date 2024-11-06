@@ -6,9 +6,9 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
-from image_crop import detect_aruco_markers, bounding_box, crop_to_bounding_box
-from adjust_image import adjust_image
-from get_segments import get_segments
+from preprocessing.image_crop import detect_aruco_markers, bounding_box, crop_to_bounding_box
+from preprocessing.adjust_image import adjust_image
+from preprocessing.get_segments import get_segments
 
 # Function to return the list of segments and the cropped image
 def process_image(

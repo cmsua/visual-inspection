@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from get_segments import get_segments
+from preprocessing.get_segments import get_segments
 
 # Define the custom transformation for rotations and segmentations
 class RotationAndSegmentationTransform:
