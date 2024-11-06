@@ -9,7 +9,8 @@ import torch
 from torchvision.transforms import ToTensor
 
 from autoencoder import SimpleCNNAutoEncoder
-from pixelwise_inspect import pw_inference
+from pixelwise_inspect.pw_inference import pw_inference
+# from pixelwise_inspect.opt_sort import opt_sort
 
 # Directory path used in local
 project_dir = './'
@@ -48,7 +49,10 @@ if __name__ == "__main__":
     image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
     # remove_transparency(image_dir)  # only for first-time usage
 
-    flaggedP, segmentList, newSegments, baselineSegments = pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+    flaggedP, optimal_threshold, newSegments, baselineSegments = pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+
+    # opt_good, opt_flagged = opt_sort(optimal_threshold, values)
+    # flaggedP = opt_flagged
     
     segment_width, segment_height = newSegments[0].size
 
@@ -99,3 +103,4 @@ if __name__ == "__main__":
     pixel_flagged = set(flaggedP) - set(double_flagged)
     all_flagged = sorted(list(set(flaggedML).union(flaggedP)))
     print(double_flagged)
+    
