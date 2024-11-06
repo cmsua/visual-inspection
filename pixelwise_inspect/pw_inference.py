@@ -1,13 +1,16 @@
 import os
 from PIL import Image
 
-from preprocessing import process_image
+import numpy as np
+
+from preprocessing.process_image import process_image
 from compare_segments import compare_segments
+from calibrate_metrics import calibrate_metrics
 
 def pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS):
     segmentList = []
 
-        # Image processing steps
+    # Image processing steps
     for i, image_path in enumerate(image_paths):
             # Read in the images
             image = Image.open(image_path)
@@ -18,7 +21,9 @@ def pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS):
             segmentList.append(segments)
 
     newSegments, baselineSegments = segmentList[0], segmentList[1]
+    differences = compare_segments(newSegments, baselineSegments)
 
-    # List of different segments based on indices
-    flaggedP = compare_segments(newSegments, baselineSegments)
-    return flaggedP, segmentList, newSegments, baselineSegments
+    optimal_threshold, bad_values, good_values = calibrate_metrics(newSegments, baselineSegments, differences)
+    #values = np.concatenate([bad_values, good_values])
+    
+    return differences, optimal_threshold, newSegments, baselineSegments
