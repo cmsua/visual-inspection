@@ -9,7 +9,6 @@ project_dir = './'
 # sys.path.append(autoencoder_dir)
 
 # Paths
-DATASET_PATH = os.path.join(project_dir, 'datasets')
 RESULT_PATH = os.path.join(project_dir, 'results')
 
 def calibrate_metrics(segments1, segments2, differences):
