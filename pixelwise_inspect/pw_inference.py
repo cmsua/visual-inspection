@@ -2,6 +2,8 @@
 from typing import List, Tuple
 from PIL import Image
 
+import numpy as np
+
 from preprocessing.process_image import process_image
 from pixelwise_inspect.compare_segments import compare_segments
 from pixelwise_inspect.calibrate_metrics import calibrate_metrics
@@ -48,5 +50,6 @@ def pw_inference(
 
     # Calibrate metrics to identify the optimal threshold
     optimal_threshold, bad_values, good_values = calibrate_metrics(new_segments, baseline_segments, differences)
+    values = np.concatenate(bad_values, good_values)
 
-    return differences, optimal_threshold, new_segments, baseline_segments
+    return differences, optimal_threshold, new_segments, baseline_segments, values

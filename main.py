@@ -49,7 +49,7 @@ if __name__ == "__main__":
     image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
     # remove_transparency(image_dir)  # only for first-time usage
 
-    flaggedP, optimal_threshold, newSegments, baselineSegments = pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+    flaggedP, optimal_threshold, newSegments, baselineSegments, values = pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
 
     # opt_good, opt_flagged = opt_sort(optimal_threshold, values)
     # flaggedP = opt_flagged
