@@ -2,15 +2,11 @@
 import os
 import sys
 
-import numpy as np
-from skimage.metrics import structural_similarity as ssim
-import cv2
 import torch
-from torchvision.transforms import ToTensor
 
-from autoencoder.model import SimpleCNNAutoEncoder
 from pixelwise_inspect.pw_inference import pw_inference
-# from pixelwise_inspect.opt_sort import opt_sort
+from autoencoder.ae_inference import ae_inference
+# from inspection.opt_sort import opt_sort
 
 # Directory path used in local
 project_dir = './'
@@ -49,12 +45,10 @@ if __name__ == "__main__":
     image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
     # remove_transparency(image_dir)  # only for first-time usage
 
-    flaggedP, optimal_threshold, newSegments, baselineSegments, values = pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+    flaggedP, pw_optimal_threshold, pw_values, newSegments, baselineSegments,  = pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
 
-    # opt_good, opt_flagged = opt_sort(optimal_threshold, values)
-    # flaggedP = opt_flagged
-    
-    segment_width, segment_height = newSegments[0].size
+    # pw_opt_good, pw_opt_flagged = opt_sort(pw_optimal_threshold, pw_values)
+    # flaggedP = pw_opt_flagged
 
     # bad_ssims = []
     # good_ssims = []
@@ -69,34 +63,10 @@ if __name__ == "__main__":
 
     # process_inspection(good_ssims, bad_ssims)
 
-    # Load the autoencoder model
-    model = SimpleCNNAutoEncoder(
-        height=segment_height,
-        width=segment_width,
-        latent_dim=128,
-        kernel_sizes=[64, 128]
-    )
-    model.to(device)
-    model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=device))
+    flaggedML, ae_optimal_threshold, ae_values = ae_inference(device, CHECKPOINT_PATH, newSegments, baselineSegments)
 
-    # Evaluate the segments
-    flaggedML = []
-    threshold = 0.4
-
-    for i, (seg1, seg2) in enumerate(zip(newSegments, baselineSegments)):
-        seg1 = ToTensor()(seg1).unsqueeze(0)
-        seg2 = np.array(seg2)
-
-        with torch.no_grad():
-            output = model(seg1).cpu().squeeze().permute(1, 2, 0).numpy()
-            output = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
-            seg2 = cv2.cvtColor(seg2, cv2.COLOR_BGR2GRAY)
-
-            # SSIM metric
-            ssim_val, _ = ssim(output, seg2, full=True, data_range=output.max() - output.min())
-
-            if ssim_val < threshold:
-                flaggedML.append(i)
+    # ae_opt_good, ae_opt_flagged = opt_sort(ae_optimal_threshold, ae_values)
+    # flagged_ML = ae_opt_flagged
 
     double_flagged = sorted(list(set(flaggedP) & set(flaggedML)))
     ml_flagged = set(flaggedML) - set(double_flagged) 

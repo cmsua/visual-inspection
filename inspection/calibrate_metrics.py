@@ -3,9 +3,10 @@ from typing import List, Tuple
 from PIL import Image
 
 import numpy as np
-from pixelwise_inspect.calibrate_utils import evaluate_inspection, process_inspection
+from inspection.calibrate_utils import evaluate_inspection, process_inspection
 
 # General function to evaluate SSIM for good and bad segments
+# needs to be renamed to pw_calibrate_metrics
 def calibrate_metrics(
     segments1: List[Image.Image],
     segments2: List[Image.Image],

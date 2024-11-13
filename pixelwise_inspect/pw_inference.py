@@ -6,7 +6,7 @@ import numpy as np
 
 from preprocessing.process_image import process_image
 from pixelwise_inspect.compare_segments import compare_segments
-from pixelwise_inspect.calibrate_metrics import calibrate_metrics
+from inspection.calibrate_metrics import calibrate_metrics
 
 # Function to perform pixel-wise comparison
 def pw_inference(
@@ -46,10 +46,10 @@ def pw_inference(
 
     # Compare the segments of the first two images
     new_segments, baseline_segments = segment_list[0], segment_list[1]
-    differences = compare_segments(new_segments, baseline_segments)
+    flaggedP = compare_segments(new_segments, baseline_segments)
 
     # Calibrate metrics to identify the optimal threshold
-    optimal_threshold, bad_values, good_values = calibrate_metrics(new_segments, baseline_segments, differences)
-    values = np.concatenate(bad_values, good_values)
+    pw_optimal_threshold, bad_values, good_values = calibrate_metrics(new_segments, baseline_segments, flaggedP)
+    pw_values = np.concatenate(bad_values, good_values)
 
-    return differences, optimal_threshold, new_segments, baseline_segments, values
+    return flaggedP, pw_optimal_threshold, pw_values, new_segments, baseline_segments
