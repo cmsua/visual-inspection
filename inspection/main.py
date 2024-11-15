@@ -1,9 +1,13 @@
 # Import necessary dependencies
 import os
-import sys
+import json
+import argparse
+from PIL import Image
 
+import matplotlib.pyplot as plt
 import torch
 
+from preprocessing.process_image import process_image
 from pixelwise_inspect.pw_inference import pw_inference
 from autoencoder.ae_inference import ae_inference
 # from inspection.opt_sort import opt_sort
@@ -11,65 +15,49 @@ from autoencoder.ae_inference import ae_inference
 # Directory path used in local
 project_dir = './'
 autoencoder_dir = os.path.join(project_dir, 'autoencoder')
-sys.path.append(autoencoder_dir)
 
 # Paths
-DATASET_PATH = os.path.join(project_dir, 'datasets')
 RESULT_PATH = os.path.join(project_dir, 'results')
 CHECKPOINT_PATH = os.path.join(autoencoder_dir, 'small_ae.pt')
 
 # Specify the device to use the autoencoder model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+# INSPECTION PROCESS
+# RUN THIS COMMAND FROM visual-inspection
+# python -m inspection.main -n "datasets/raw_images/hexaboard_01.png" -b "datasets/raw_images/hexaboard_02.png" -t "inspection/calibration.json" -vs 20 -hs 12
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(
-    #     prog='Visual Inspection',
-    #     description='Inspects Hexaboards for defects',
-    #     epilog='University of Alabama'
-    # )
+    parser = argparse.ArgumentParser(
+        prog='Visual Inspection',
+        description='Inspects Hexaboards for defects',
+        epilog='University of Alabama'
+    )
 
-    # # Set up arguments
-    # parser.add_argument('folder')
-    # parser.add_argument('-v', '--verbose', action='store_true')
-
-    # # Parse
-    # args = parser.parse_args()
+    # Set up arguments
+    parser.add_argument('-n', '--new_image_path', type=str, help='path to new image')
+    parser.add_argument('-b', '--baseline_image_path', type=str, help='path to baseline image')
+    parser.add_argument('-t', '--threshold_path', type=str, help='optimal threshold for SSIM')
+    parser.add_argument('-vs', '--vertical_segments', type=int, help='number of vertical image segments')
+    parser.add_argument('-hs', '--horizontal_segments', type=int, help='number of horizontal image segments')
     
-    # Adjust the number of segments
-    # THIS SHOULD WORK WITH THE GUI
-    NUM_VERTICAL_SEGMENTS = 20
-    NUM_HORIZONTAL_SEGMENTS = 12
+    # Parse and retrieve the arguments
+    args = parser.parse_args()
+    new_image = Image.open(args.new_image_path)
+    baseline_image = Image.open(args.baseline_image_path)
+    with open(args.threshold_path, 'r') as fin:
+        threshold, bad_ssims, good_ssims = json.load(fin)
 
-    # Get the directory to all images
-    image_dir = os.path.join(DATASET_PATH, 'raw_images')
-    image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.png')]
-    # remove_transparency(image_dir)  # only for first-time usage
+    # Get all segments from the new and baseline images
+    new_segments, _ = process_image(new_image, args.vertical_segments, args.horizontal_segments)
+    baseline_segments, _= process_image(baseline_image, args.vertical_segments, args.horizontal_segments)
 
-    flaggedP, pw_optimal_threshold, pw_values, newSegments, baselineSegments,  = pw_inference(image_paths, NUM_VERTICAL_SEGMENTS, NUM_HORIZONTAL_SEGMENTS)
+    # Perform inferences
+    pw_indices = pw_inference(new_segments, baseline_segments, threshold)
+    ae_indices = ae_inference(new_segments, threshold, device, CHECKPOINT_PATH)
 
-    # pw_opt_good, pw_opt_flagged = opt_sort(pw_optimal_threshold, pw_values)
-    # flaggedP = pw_opt_flagged
-
-    # bad_ssims = []
-    # good_ssims = []
-
-    # for i, (segment1, segment2) in enumerate(zip(newSegments, baselineSegments)):
-    #     measure_value = evaluate_inspection(newSegments, baselineSegments)
-
-    #     if i in flaggedP:
-    #         bad_ssims.append(measure_value)
-    #     else:
-    #         good_ssims.append(measure_value)
-
-    # process_inspection(good_ssims, bad_ssims)
-
-    flaggedML, ae_optimal_threshold, ae_values = ae_inference(device, CHECKPOINT_PATH, newSegments, baselineSegments)
-
-    # ae_opt_good, ae_opt_flagged = opt_sort(ae_optimal_threshold, ae_values)
-    # flagged_ML = ae_opt_flagged
-
-    double_flagged = sorted(list(set(flaggedP) & set(flaggedML)))
-    ml_flagged = set(flaggedML) - set(double_flagged) 
-    pixel_flagged = set(flaggedP) - set(double_flagged)
-    all_flagged = sorted(list(set(flaggedML).union(flaggedP)))
+    # Lists of flagged segments
+    double_flagged = sorted(list(set(pw_indices) & set(ae_indices)))
+    ml_flagged = set(ae_indices) - set(double_flagged) 
+    pixel_flagged = set(pw_indices) - set(double_flagged)
+    all_flagged = sorted(list(set(ae_indices).union(pw_indices)))
     print(double_flagged)
