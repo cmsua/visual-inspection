@@ -1,55 +1,45 @@
 # Import necessary dependencies
-from typing import List, Tuple
+from typing import List
 from PIL import Image
 
 import numpy as np
+from skimage.metrics import structural_similarity as ssim
 
-from preprocessing.process_image import process_image
-from pixelwise_inspect.compare_segments import compare_segments
-from inspection.calibrate_metrics import calibrate_metrics
-
-# Function to perform pixel-wise comparison
+# Function for pixel-by-pixel comparison
 def pw_inference(
-    image_paths: List[str],
-    num_vertical_segments: int,
-    num_horizontal_segments: int
-) -> Tuple[List[int], float, List[Image.Image], List[Image.Image]]:
+    new_segments: List[Image.Image],
+    baseline_segments: List[Image.Image],
+    threshold: float
+) -> List[int]:
     """
-    Performs pixel-wise inference by processing images, segmenting them, and comparing them to identify differences.
+    Performs pixel-wise inference by comparing SSIM (Structural Similarity Index) values between corresponding
+    segments from two images and identifying those below a specified threshold.
 
     Args:
-        image_paths (List[str]): List of paths to the images to be processed.
-        num_vertical_segments (int): Number of vertical segments to divide each image into.
-        num_horizontal_segments (int): Number of horizontal segments to divide each image into.
+        new_segments (List[Image.Image]): List of segmented images (new segments) to be inspected.
+        baseline_segments (List[Image.Image]): List of segmented baseline images for comparison.
+        threshold (float): SSIM threshold below which segments are flagged as differing significantly.
 
     Returns:
-        (differences, optimal_threshold, new_segments, baseline_segments) (Tuple[List[int], float, List[Image.Image], List[Image.Image]]):
-            - List of indices where differences were found between the first and second image segments.
-            - Optimal SSIM threshold for differentiating good and bad segments.
-            - List of segmented images from the first image (new segments).
-            - List of segmented images from the second image (baseline segments).
+        flagged_indices (List[int]): List of indices where the SSIM between corresponding segments is below the threshold.
     """
-    segment_list = []
+    assert len(new_segments) == len(baseline_segments), "Segment lists are not of the same length"
 
-    # Image processing steps
-    for i, image_path in enumerate(image_paths):
-        # Read in the image
-        image = Image.open(image_path)
-        
-        # Crop and segment the image based on ArUco markers
-        segments, cropped_image = process_image(image, num_vertical_segments, num_horizontal_segments)
+    flagged_indices = []
 
-        # Save the processed segments (optional)
-        # cropped_image.save(os.path.join(DATASET_PATH, 'unperturbed_images', f'hexaboard_{i + 1}.png'))
-        
-        segment_list.append(segments)
+    # Iterate over all segments
+    for i, (seg1, seg2) in enumerate(zip(new_segments, baseline_segments)):
+        img1 = np.array(seg1)
+        img2 = np.array(seg2)
 
-    # Compare the segments of the first two images
-    new_segments, baseline_segments = segment_list[0], segment_list[1]
-    flaggedP = compare_segments(new_segments, baseline_segments)
+        # Check if the segment shapes are different
+        assert img1.shape == img2.shape, 'Image 1 and Image 2 in compare_segments have different shapes'
+    
+        # SSIM metrics
+        ssim_val = ssim(img1, img2, channel_axis=2)
 
-    # Calibrate metrics to identify the optimal threshold
-    pw_optimal_threshold, bad_values, good_values = calibrate_metrics(new_segments, baseline_segments, flaggedP)
-    pw_values = np.concatenate(bad_values, good_values)
+        # Filter the indices
+        if ssim_val < threshold:
+            flagged_indices.append(i)
 
-    return flaggedP, pw_optimal_threshold, pw_values, new_segments, baseline_segments
+    return flagged_indices
