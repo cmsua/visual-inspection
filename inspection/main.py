@@ -4,7 +4,6 @@ import json
 import argparse
 from PIL import Image
 
-import matplotlib.pyplot as plt
 import torch
 
 from preprocessing.process_image import process_image
@@ -49,7 +48,7 @@ if __name__ == "__main__":
 
     # Get all segments from the new and baseline images
     new_segments, _ = process_image(new_image, args.vertical_segments, args.horizontal_segments)
-    baseline_segments, _= process_image(baseline_image, args.vertical_segments, args.horizontal_segments)
+    baseline_segments, _ = process_image(baseline_image, args.vertical_segments, args.horizontal_segments)
 
     # Perform inferences
     pw_indices = pw_inference(new_segments, baseline_segments, threshold)
