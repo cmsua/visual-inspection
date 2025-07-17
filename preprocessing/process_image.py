@@ -74,7 +74,19 @@ if __name__ == "__main__":
         num_vertical_segments=NUM_VERTICAL_SEGMENTS,
         num_horizontal_segments=NUM_HORIZONTAL_SEGMENTS
     )
+    
+    # Print the shape and data type of the cropped image
+    if cropped_image:
+        print("Cropped Image Shape:", np.array(cropped_image).shape)
+        print("Cropped Image Data Type:", np.array(cropped_image).dtype)
 
+    # Print the shape and data type of the segments
+    if segments:
+        print("Number of Segments:", len(segments))
+        for i, segment in enumerate(segments):
+            print(f"Segment {i+1} Shape:", np.array(segment).shape)
+            print(f"Segment {i+1} Data Type:", np.array(segment).dtype)
+            
     # Observe some segments
     if segments:
         # Display the first 8 segments in a 2x4 grid
