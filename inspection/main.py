@@ -2,11 +2,11 @@
 import os
 import json
 import argparse
-from PIL import Image
 
 import torch
 
-from preprocessing.process_image import process_image
+import numpy as np
+
 from pixelwise_inspect.pw_inference import pw_inference
 from autoencoder.ae_inference import ae_inference
 # from inspection.opt_sort import opt_sort
@@ -33,26 +33,26 @@ if __name__ == "__main__":
     )
 
     # Set up arguments
-    parser.add_argument('-n', '--new_image_path', type=str, help='path to new image')
-    parser.add_argument('-b', '--baseline_image_path', type=str, help='path to baseline image')
+    parser.add_argument('-n', '--new_images_path', type=str, help='path to new image')
+    parser.add_argument('-b', '--baseline_images_path', type=str, help='path to baseline image')
     parser.add_argument('-t', '--threshold_path', type=str, help='optimal threshold for SSIM')
-    parser.add_argument('-vs', '--vertical_segments', type=int, help='number of vertical image segments')
-    parser.add_argument('-hs', '--horizontal_segments', type=int, help='number of horizontal image segments')
+    parser.add_argument('-vs', '--vertical_split', type=int, help='how portions to split the image into vertically')
+    parser.add_argument('-hs', '--horizontal_segments', type=int, help='how many portions to split the image into horizontally')
     
     # Parse and retrieve the arguments
     args = parser.parse_args()
-    new_image = Image.open(args.new_image_path)
-    baseline_image = Image.open(args.baseline_image_path)
+    new_images = np.load(args.new_images_path)
+    baseline_images = np.load(args.baseline_images_path)
     with open(args.threshold_path, 'r') as fin:
         threshold, bad_ssims, good_ssims = json.load(fin)
 
-    # Get all segments from the new and baseline images
-    new_segments, _ = process_image(new_image, args.vertical_segments, args.horizontal_segments)
-    baseline_segments, _ = process_image(baseline_image, args.vertical_segments, args.horizontal_segments)
+    array_size = new_images.shape
+
+    # Potentially need to add dataset and dataloader here
 
     # Perform inferences
-    pw_indices = pw_inference(new_segments, baseline_segments, threshold)
-    ae_indices = ae_inference(new_segments, threshold, device, CHECKPOINT_PATH)
+    pw_indices = pw_inference(new_images, baseline_images, threshold)
+    ae_indices = ae_inference(new_images, threshold, device, CHECKPOINT_PATH)
 
     # Lists of flagged segments
     double_flagged = sorted(list(set(pw_indices) & set(ae_indices)))

@@ -8,7 +8,6 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 
 from inspection.calibrate_utils import process_inspection
-from preprocessing.process_image import process_image
 
 # General function to obtain calibration metrics (optimal threshold for SSIM)
 def calibrate_metrics(
@@ -63,25 +62,20 @@ if __name__ == "__main__":
     )
 
     # Set up arguments
-    parser.add_argument('-n', '--new_image_path', type=str, help='path to new image')
-    parser.add_argument('-b', '--baseline_image_path', type=str, help='path to baseline image')
-    parser.add_argument('-s', '--second_baseline_image_path', type=str, help='path to second baseline image')
+    parser.add_argument('-n', '--new_images_path', type=str, help='path to new image')
+    parser.add_argument('-b', '--baseline_images_path', type=str, help='path to baseline image')
+    parser.add_argument('-s', '--second_baseline_images_path', type=str, help='path to second baseline image')
     parser.add_argument('-vs', '--vertical_segments', type=int, help='number of vertical image segments')
     parser.add_argument('-hs', '--horizontal_segments', type=int, help='number of horizontal image segments')
     
     # Parse
     args = parser.parse_args()
-    new_image = Image.open(args.new_image_path)
-    baseline_image = Image.open(args.baseline_image_path)
-    second_baseline_image = Image.open(args.baseline_image_path)
-
-    # Get all segments from the new and baseline images
-    new_segments, _ = process_image(new_image, args.vertical_segments, args.horizontal_segments)
-    baseline_segments, _= process_image(baseline_image, args.vertical_segments, args.horizontal_segments)
-    second_baseline_segments, _ = process_image(second_baseline_image, args.vertical_segments, args.horizontal_segments)
+    new_images = np.load(args.new_images_path)
+    baseline_images = np.load(args.baseline_images_path)
+    second_baseline_images = np.load(args.baseline_image_path)
 
     # Calibrate the threshold
-    threshold, bad_ssims, good_ssims = calibrate_metrics(baseline_segments, new_segments, second_baseline_segments)
+    threshold, bad_ssims, good_ssims = calibrate_metrics(baseline_images, new_images, second_baseline_images)
 
     # Save to a JSON file
     with open('inspection/calibration.json', 'w') as fout:
