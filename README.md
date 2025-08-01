@@ -149,11 +149,10 @@ python -m src.inspection.main \
 
 The input `.npy` files should contain hexaboard image arrays with shape:
 ```
-(num_boards, H_seg, V_seg, height, width, num_channels)
+(H_seg, V_seg, height, width, num_channels)
 ```
 
 Where:
-- `num_boards`: Number of hexaboard images
 - `H_seg`: Number of horizontal segments (typically 12)
 - `V_seg`: Number of vertical segments (typically 9)
 - `height, width`: Pixel dimensions of each segment
