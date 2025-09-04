@@ -1,0 +1,249 @@
+from typing import List, Tuple
+
+import torch
+from torch import nn, Tensor
+
+
+class CNNAutoencoder(nn.Module):
+    r"""
+    A symmetric CNN autoencoder without residuals in the encoder.
+    The decoder mirrors the ResNetAutoencoder decoder structure.
+
+    Parameters
+    ----------
+    height : int
+        Height of the input images.
+    width : int
+        Width of the input images.
+    latent_dim : int
+        Dimension of the latent (bottleneck) vector.
+    init_filters : int
+        Number of filters in the first convolutional layer (stem).
+    layers : List[int]
+        Number of Conv-BN-ReLU blocks in each encoder stage.
+    """
+    def __init__(
+        self,
+        height: int,
+        width: int,
+        latent_dim: int = 16,
+        init_filters: int = 64,
+        layers: List[int] = [2, 2, 2, 2]
+    ):
+        super().__init__()
+        self.height = height
+        self.width = width
+
+        # Encoder
+        self.conv1 = nn.Conv2d(3, init_filters, kernel_size=(10, 16), stride=(5, 8), padding=(5, 0), bias=False)
+        self.bn1 = nn.GroupNorm(1, init_filters)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        self.encoder_layers = nn.ModuleList()
+        in_channels = init_filters
+
+        for i, num_blocks in enumerate(layers):
+            if i == 0:
+                out_channels = in_channels
+            elif i == len(layers) - 1:
+                out_channels = latent_dim
+            else:
+                out_channels = in_channels * 2
+
+            stride = 1 if i == 0 else 2  # downsample at the start of each stage (except stage 0)
+            pooling = False if i == 0 else True  # pooling only after the first stage
+            stage = self._make_stage(in_channels, out_channels, num_blocks, stride, pooling)
+            self.encoder_layers.append(stage)
+            in_channels = out_channels
+
+        # with torch.no_grad():
+        #     dummy_input = torch.zeros(1, 3, height, width)
+        #     self._shapes = self._forward_shapes(dummy_input)
+        #     self._shapes = self._shapes[::-1]
+        #     self._shapes.append((height, width))
+        #     print(f"Encoder output shapes: {self._shapes}")
+
+        # Bottleneck
+        # self.compress = nn.Conv2d(in_channels, latent_dim, kernel_size=1, bias=False)
+        # self.non_linear = nn.ReLU(inplace=True)
+        # self.decompress = nn.Conv2d(latent_dim, in_channels, kernel_size=1, bias=False)
+
+        # Sizes produced by the stem
+        conv1_out_height = (self.height + 10 - 10) // 5 + 1
+        conv1_out_width = (self.width - 16) // 8 + 1
+        stem_square_size = (conv1_out_height + 2 - 3) // 2 + 1
+        assert stem_square_size == ((conv1_out_width + 2 - 3) // 2 + 1), "Stem must yield a square map."
+
+        # Encoder output per stage
+        encoder_channels = [init_filters]
+
+        for i in range(1, len(layers) - 1):
+            encoder_channels.append(encoder_channels[-1] * 2)
+
+        encoder_channels.append(latent_dim)
+
+        # Spatial size per stage
+        stage_out = [stem_square_size]
+        stage_conv = [None] * len(layers)
+
+        for i in range(1, len(layers)):
+            stride_conv = (stage_out[i - 1] - 1) // 2 + 1
+            stride_pool = stride_conv // 2
+            stage_conv[i] = stride_conv
+            stage_out.append(stride_pool)
+
+        # Decoder
+        self.decoder_layers = nn.ModuleList()
+
+        for i in range(len(layers) - 1, 0, -1):
+            in_channels = encoder_channels[i]
+            mid_channels = encoder_channels[i - 1]
+
+            # Undo pooling
+            output_padding1 = stage_conv[i] - 2 * stage_out[i]
+            self.decoder_layers.append(
+                nn.Sequential(
+                    nn.ConvTranspose2d(
+                        in_channels,
+                        mid_channels,
+                        kernel_size=4,
+                        stride=2,
+                        padding=1,
+                        output_padding=int(output_padding1),
+                        bias=False
+                    ),
+                    nn.GroupNorm(1, mid_channels),
+                    nn.ReLU(inplace=True),
+                )
+            )
+
+            # Undo convolution layers with stride=2
+            output_padding2 = stage_out[i - 1] - (2 * stage_conv[i] - 1)
+            assert output_padding2 in (0, 1), f"invalid output_padding2={output_padding2} for stage {i}"
+            
+            self.decoder_layers.append(
+                nn.Sequential(
+                    nn.ConvTranspose2d(
+                        mid_channels,
+                        mid_channels,
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                        output_padding=int(output_padding2),
+                        bias=False
+                    ),
+                    nn.GroupNorm(1, mid_channels),
+                    nn.ReLU(inplace=True),
+                )
+            )
+
+        # Undo stem maxpool
+        self.decoder_layers.append(
+            nn.Sequential(
+                nn.ConvTranspose2d(
+                    encoder_channels[0],
+                    encoder_channels[0],
+                    kernel_size=2,
+                    stride=2,
+                    padding=0,
+                    bias=False
+                ),
+                nn.GroupNorm(1, encoder_channels[0]),
+                nn.ReLU(inplace=True),
+            )
+        )
+
+        # Invert the stem to original size
+        out_height = self.height - ((conv1_out_height - 1) * 5 - 10 + 10)
+        out_width = self.width - ((conv1_out_width - 1) * 8 + 16)
+        assert out_height in (0, 1) and out_width in (0, 1), "Stem inverse requires op in {0,1}."
+
+        self.decoder_layers.append(
+            nn.Sequential(
+                nn.ConvTranspose2d(
+                    encoder_channels[0],
+                    3,
+                    kernel_size=(10, 16),
+                    stride=(5, 8),
+                    padding=(5, 0),
+                    output_padding=(int(out_height), int(out_width)),
+                    bias=False
+                )
+            )
+        )
+
+    def _make_stage(
+        self,
+        in_channels: int,
+        out_channels: int,
+        blocks: int,
+        stride: int,
+        pooling: bool = False,
+    ) -> nn.Sequential:
+        layers = []
+
+        # First block (may downsample via stride)
+        layers.append(nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
+            nn.GroupNorm(1, out_channels),
+            nn.ReLU(inplace=True),
+        ))
+
+        # Remaining blocks (stride=1)
+        for _ in range(1, blocks):
+            layers.append(nn.Sequential(
+                nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+                nn.GroupNorm(1, out_channels),
+                nn.ReLU(inplace=True),
+            ))
+
+        if pooling:
+            layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+
+        return nn.Sequential(*layers)
+
+    def _forward_shapes(self, x: Tensor) -> List[Tuple[int, int]]:
+        shapes = []
+        x = self.conv1(x)
+        shapes.append(x.shape[-2:])
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        shapes.append(x.shape[-2:])
+
+        for layer in self.encoder_layers:
+            x = layer(x)
+            shapes.append(x.shape[-2:])
+
+        return shapes
+    
+    @property
+    def shapes(self) -> List[Tuple[int, int]]:
+        return self._shapes
+
+    def forward(self, x: Tensor) -> Tensor:
+        B, C, H, W = x.shape
+
+        # Encoder
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        for layer in self.encoder_layers:
+            x = layer(x)
+
+        # Bottleneck
+        # x = self.compress(x)
+        # x = self.non_linear(x)
+        # x = self.decompress(x)
+
+        # Decoder
+        for layer in self.decoder_layers:
+            x = layer(x)
+
+        # Validate shape
+        assert x.shape == (B, C, H, W), f"Output shape mismatch: {x.shape} != {(B, C, H, W)}"
+
+        return x

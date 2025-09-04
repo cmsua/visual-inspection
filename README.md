@@ -26,40 +26,30 @@ This project implements an automated visual inspection system that combines:
 ### Installation
 
 1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd visual-inspection
-   ```
+    ```bash
+    git clone <repository-url>
+    cd visual-inspection
+    ```
 
 2. **Create and activate a virtual environment:**
-   ```bash
-   python -m venv venv
-   
-   # On Windows
-   venv\Scripts\activate
-   
-   # On macOS/Linux
-   source venv/bin/activate
-   ```
+    ```bash
+    python -m venv venv
+
+    # On Windows
+    venv\Scripts\activate
+
+    # On macOS/Linux
+    source venv/bin/activate
+    ```
 
 3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-4. **GPU Setup (Optional but Recommended):**
-   
-   If your system has CUDA GPU support, PyTorch will automatically use it. If you don't have a CUDA GPU or encounter CUDA-related issues, reinstall the CPU version of PyTorch:
-   
-   ```bash
-   pip uninstall torch torchvision
-   pip install torch==2.7.1+cpu torchvision==0.22.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
-   ```
+4. **Install PyTorch (GPU or CPU):**
 
-5. **Verify installation:**
-   ```bash
-   python -c "import torch; print(f'PyTorch version: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')"
-   ```
+    See: https://pytorch.org/get-started/locally/
 
 ## Train/Evaluate the Autoencoder
 
@@ -92,7 +82,7 @@ python -m scripts.train \
 - `--data-path`: Path to the reference hexaboard image array (.npy file)
 - `--latent-dim`: Bottleneck dimension (default: 128)
 - `--init-filters`: Initial number of filters (default: 64)
-- `--layers`: ResNet layer configuration (default: [2, 2, 2, 2])
+- `--layers`: ResNet layer configuration (default: [2, 2, 2])
 - `--batch-size`: Training batch size (default: 4)
 - `--num-epochs`: Number of training epochs (default: 100)
 - `--learning-rate`: Learning rate (default: 1e-3)
@@ -141,7 +131,7 @@ python -m src.inspection.main \
 - `-w, --best-model-path`: Path to trained model weights (default: ./logs/ResNetAutoencoder/best/run_01.pt)
 - `--latent-dim`: Autoencoder latent dimension (default: 128)
 - `--init-filters`: Initial filter count (default: 64)
-- `--layers`: ResNet layer configuration (default: [2, 2, 2, 2])
+- `--layers`: ResNet layer configuration (default: [2, 2, 2])
 - `--batch-size`: Inference batch size (default: 4)
 - `--device`: Computation device (default: auto-detect CUDA/CPU)
 

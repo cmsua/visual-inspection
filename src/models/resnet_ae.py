@@ -5,11 +5,6 @@ from torch import nn, Tensor
 from torchvision.models.resnet import BasicBlock
 
 
-def _conv_out(h: int, k: int, s: int, p: int, d: int = 1) -> int:
-    """Standard conv output formula (same as PyTorch docs)."""
-    return (h + 2 * p - d * (k - 1) - 1) // s + 1
-
-
 def _deconv_out(h: int, k: int, s: int, p: int, op: int) -> int:
     """ConvTranspose2d output formula."""
     return (h - 1) * s - 2 * p + k + op
@@ -57,6 +52,7 @@ class ResNetAutoencoder(nn.Module):
 
         self.encoder_layers = nn.ModuleList()
         in_channels = init_filters
+        
         for i, num_blocks in enumerate(layers):
             out_channels = in_channels if i == 0 else in_channels * 2
             stride = 1 if i == 0 else 2
@@ -72,11 +68,13 @@ class ResNetAutoencoder(nn.Module):
 
         # Bottleneck
         self.compress = nn.Conv2d(in_channels, latent_dim, kernel_size=1, bias=False)
+        self.non_linear = nn.ReLU(inplace=True)
         self.decompress = nn.Conv2d(latent_dim, in_channels, kernel_size=1, bias=False)
 
         # Decoder
         self.decoder_layers = nn.ModuleList()
         cur_channels = in_channels
+
         for i, (height_in, width_in) in enumerate(self._shapes[:-1]):
             height_out, width_out = self._shapes[i + 1]
 
@@ -122,6 +120,7 @@ class ResNetAutoencoder(nn.Module):
             )
 
         encoder_layers = [BasicBlock(in_channels, out_channels, stride=stride, downsample=downsample)]
+
         for _ in range(1, blocks):
             encoder_layers.append(BasicBlock(out_channels, out_channels))
 
@@ -159,11 +158,13 @@ class ResNetAutoencoder(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
+
         for layer in self.encoder_layers:
             x = layer(x)
 
         # Bottleneck
         x = self.compress(x)
+        x = self.non_linear(x)
         x = self.decompress(x)
 
         # Decoder

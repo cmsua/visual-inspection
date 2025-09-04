@@ -30,47 +30,42 @@ class Trainer:
         The dataset for training.
     val_dataset: Dataset
         The dataset for validation.
-    test_dataset: Dataset
+    test_dataset: Dataset, optional
         The dataset for testing.
     criterion: _Loss
         The loss function to be used.
     optimizer: Optimizer
         The optimizer for training.
-    scheduler: Optional[_LRScheduler]
+    scheduler: _LRScheduler, optional
         The learning rate scheduler.
-    metric: Optional[Callable]
+    metric: Callable, optional
         The metric function to evaluate the model (e.g. accuracy).
-    callbacks: Optional[List[BaseCallback]]
+    callbacks: List[BaseCallback], optional
         List of callbacks to be executed during training.
-    config: Optional[TrainConfig]
+    config: TrainConfig, optional
         Configuration object containing training parameters.
-    batch_size: Optional[int]
+    batch_size: int, optional
         Batch size for training and validation.
-    num_epochs: Optional[int]
+    num_epochs: int, optional
         Number of training epochs.
-    start_epoch: Optional[int]
+    start_epoch: int, optional
         The epoch to start training from.
-    history: Optional[Dict[str, List[float]]]
+    history: Dict[str, List[float]], optional
         History of training metrics.
-    logging_dir: Optional[str]
+    logging_dir: str, optional
         Directory for logging training progress.
-    logging_steps: Optional[int]
+    logging_steps: int, optional
         Frequency of logging training progress.
-    save_best: Optional[bool]
+    save_best: bool, optional
         Whether to save the best model based on validation loss.
-    save_ckpt: Optional[bool]
+    save_ckpt: bool, optional
         Whether to save checkpoints during training.
-    device: Optional[torch.device]
+    device: torch.device, optional
         Device to run the training on (CPU or GPU).
-    num_workers: Optional[int]
+    num_workers: int, optional
         Number of workers for data loading.
-    pin_memory: Optional[bool]
+    pin_memory: bool, optional
         Whether to pin memory for data loading.
-
-    Returns
-    -------
-    Tuple[Dict[str, List[float]], nn.Module]
-        A tuple containing the training history and the trained model.
     """
     def __init__(
         self,
@@ -166,9 +161,11 @@ class Trainer:
         os.makedirs(self.log_dir, exist_ok=True)
 
         # Subfolders
-        self.best_dir = os.path.join(self.log_dir, 'best')
+        self.best_models_dir = os.path.join(self.log_dir, 'best')
+        self.checkpoints_dir = os.path.join(self.log_dir, 'checkpoints')
         self.loggings_dir = os.path.join(self.log_dir, 'loggings')
-        os.makedirs(self.best_dir, exist_ok=True)
+        os.makedirs(self.best_models_dir, exist_ok=True)
+        os.makedirs(self.checkpoints_dir, exist_ok=True)
         os.makedirs(self.loggings_dir, exist_ok=True)
 
         # Determine run index
@@ -177,9 +174,9 @@ class Trainer:
 
         # Logging and best model paths
         self._log_header_written = False
-        self.log_path = os.path.join(self.loggings_dir, f"{self.run_name}.csv")
-        self.best_model_path = os.path.join(self.best_dir, f"{self.run_name}.pt") if self.save_best else None
-        self.checkpoint_path = os.path.join(self.log_dir, "checkpoint.pt") if self.save_ckpt else None
+        self.best_model_path = os.path.join(self.best_models_dir, f"{self.run_name}.pt") if self.save_best else None
+        self.checkpoint_path = os.path.join(self.checkpoints_dir, f"{self.run_name}.pt") if self.save_ckpt else None
+        self.logging_path = os.path.join(self.loggings_dir, f"{self.run_name}.csv")
 
     def _get_next_run_index(self, directory: str, prefix: str, suffix: str) -> int:
         os.makedirs(directory, exist_ok=True)
@@ -209,8 +206,8 @@ class Trainer:
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         self.run_name = checkpoint['run_name']
         self._log_header_written = True
-        self.log_path = os.path.join(self.loggings_dir, f"{self.run_name}.csv")
-        self.best_model_path = os.path.join(self.best_dir, f"{self.run_name}.pt") if self.save_best else None
+        self.logging_path = os.path.join(self.loggings_dir, f"{self.run_name}.csv")
+        self.best_model_path = os.path.join(self.best_models_dir, f"{self.run_name}.pt") if self.save_best else None
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if self.scheduler is not None and checkpoint['scheduler_state_dict'] is not None:
@@ -226,7 +223,7 @@ class Trainer:
 
     def log_csv(self, log_dict: Dict[str, float]):
         write_header = not self._log_header_written
-        with open(self.log_path, 'a', newline='') as csvfile:
+        with open(self.logging_path, 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=log_dict.keys())
             if write_header:
                 writer.writeheader()
@@ -444,41 +441,36 @@ class AutoencoderTrainer(Trainer):
         The loss function to be used.
     optimizer: Optimizer
         The optimizer for training.
-    scheduler: Optional[_LRScheduler]
+    scheduler: _LRScheduler, optional
         The learning rate scheduler.
-    metric: Optional[Callable]
+    metric: Callable, optional
         The metric function to evaluate the model (e.g. accuracy).
-    callbacks: Optional[List[BaseCallback]]
+    callbacks: List[BaseCallback], optional
         List of callbacks to be executed during training.
-    config: Optional[TrainConfig]
+    config: TrainConfig, optional
         Configuration object containing training parameters.
-    batch_size: Optional[int]
+    batch_size: int, optional
         Batch size for training and validation.
-    num_epochs: Optional[int]
+    num_epochs: int, optional
         Number of training epochs.
-    start_epoch: Optional[int]
+    start_epoch: int, optional
         The epoch to start training from.
-    history: Optional[Dict[str, List[float]]]
+    history: Dict[str, List[float]], optional
         History of training metrics.
-    logging_dir: Optional[str]
+    logging_dir: str, optional
         Directory for logging training progress.
-    logging_steps: Optional[int]
+    logging_steps: int, optional
         Frequency of logging training progress.
-    save_best: Optional[bool]
+    save_best: bool, optional
         Whether to save the best model based on validation loss.
-    save_ckpt: Optional[bool]
+    save_ckpt: bool, optional
         Whether to save checkpoints during training.
-    device: Optional[torch.device]
+    device: torch.device, optional
         Device to run the training on (CPU or GPU).
-    num_workers: Optional[int]
+    num_workers: int, optional
         Number of workers for data loading.
-    pin_memory: Optional[bool]
+    pin_memory: bool, optional
         Whether to pin memory for data loading.
-
-    Returns
-    -------
-    Tuple[Dict[str, List[float]], nn.Module]
-        A tuple containing the training history and the trained model.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -533,14 +525,12 @@ class AutoencoderTrainer(Trainer):
                     if step % self.logging_steps == 0 or step == total_steps:
                         tqdm.write(
                             f"step: {step}/{total_steps} | "
-                            f"train_loss: {avg_loss:.4f} | "
-                            f"train_metric: {avg_metric:.4f}"
+                            f"train_loss: {avg_loss:.4f}"
                         )
 
                     global_bar.set_postfix({
                         "epoch": f"{epoch + 1}/{self.num_epochs}",
-                        "avg_loss": f"{avg_loss:.4f}",
-                        "avg_metric": f"{avg_metric:.4f}"
+                        "avg_loss": f"{avg_loss:.4f}"
                     })
                     global_bar.update(1)
 
@@ -566,8 +556,7 @@ class AutoencoderTrainer(Trainer):
                 # Short summary for validation
                 tqdm.write(
                     f"epoch: {epoch + 1}/{self.num_epochs} | "
-                    f"val_loss: {val_loss:.4f} | "
-                    f"val_metric: {val_metric:.4f}"
+                    f"val_loss: {val_loss:.4f}"
                 )
 
                 if self.scheduler:
@@ -623,7 +612,7 @@ class AutoencoderTrainer(Trainer):
     def evaluate(
         self,
         plot: Optional[Union[Callable, List[Callable]]] = None
-    ) -> Tuple[float, float, np.ndarray, np.ndarray]:
+    ) -> Tuple[float, np.ndarray, np.ndarray]:
         if self.test_loader is None:
             raise ValueError("Test dataset is not provided.")
         
@@ -640,16 +629,12 @@ class AutoencoderTrainer(Trainer):
 
             test_loss += self.criterion(outputs_test, X_test).item()
 
-            if self.metric:
-                test_metric += self.metric(outputs_test, X_test)
-
             y_true_list.append(X_test.cpu().numpy())
             y_pred_list.append(torch.sigmoid(outputs_test).cpu().numpy())
 
         test_loss /= len(self.test_loader)
-        test_metric /= len(self.test_loader)
 
-        print(f"test_loss: {test_loss:.4f} | test_metric: {test_metric:.4f}")
+        print(f"test_loss: {test_loss:.4f}")
 
         y_true = np.concatenate(y_true_list, axis=0)
         y_pred = np.concatenate(y_pred_list, axis=0)
@@ -662,4 +647,4 @@ class AutoencoderTrainer(Trainer):
             else:
                 plot(y_true, y_pred)
 
-        return test_loss, test_metric, y_true, y_pred
+        return test_loss, y_true, y_pred

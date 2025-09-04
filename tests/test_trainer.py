@@ -8,7 +8,7 @@ import torch
 from torch import nn, optim
 
 from src.engine import AutoencoderTrainer
-from src.models import ResNetAutoencoder
+from src.models import CNNAutoencoder
 from src.utils.data import HexaboardDataset
 
 torch.manual_seed(42)
@@ -40,11 +40,11 @@ def make_trainer(temp_dir: str) -> AutoencoderTrainer:
     train_dataset, val_dataset, test_dataset = make_datasets()
 
     # Initialize the model
-    model = ResNetAutoencoder(
+    model = CNNAutoencoder(
         height=1016,
         width=1640,
-        latent_dim=128,
-        init_filters=64,
+        latent_dim=16,
+        init_filters=32,
         layers=[2, 2, 2]
     ).to(device)
 

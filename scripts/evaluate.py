@@ -7,29 +7,29 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from src.models import ResNetAutoencoder
+from src.models import CNNAutoencoder
 from src.utils.data import HexaboardDataset
 from src.utils.viz import plot_reconstructions
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Evaluate a ResNetAutoencoder model on hexaboard images.")
+    parser = argparse.ArgumentParser(description="Evaluate a CNNAutoencoder model on hexaboard images.")
 
     # Data I/O arguments
     parser.add_argument('--test-dataset', type=str, default='./data/test', help="Test data folder")
-    parser.add_argument('--best-model-path', type=str, default='./logs/ResNetAutoencoder/best/run_01.pt', help="Path to the best model weights")
+    parser.add_argument('--best-model-path', type=str, default='./logs/CNNAutoencoder/best/run_01.pt', help="Path to the best model weights")
 
     # Model architecture arguments
-    parser.add_argument('--latent-dim', type=int, default=128, help="Bottleneck dimension")
-    parser.add_argument('--init-filters', type=int, default=64, help="Initial number of filters in the model")
-    parser.add_argument('--layers', nargs='+', type=int, default=[2, 2, 2], help="Number of ResNet layers and their BasicBlocks")
+    parser.add_argument('--latent-dim', type=int, default=16, help="Bottleneck dimension")
+    parser.add_argument('--init-filters', type=int, default=32, help="Initial number of filters in the model")
+    parser.add_argument('--layers', nargs='+', type=int, default=[2, 2, 2], help="Number of CNN stages and their blocks")
 
     # Plotting arguments
     parser.add_argument('--num-images', type=int, default=8, help="Number of images to visualize in the output")
     parser.add_argument('--no-plot', action='store_true', help="Disable plotting of reconstructed images")
 
     # Dataloading/device arguments
-    parser.add_argument('--batch-size', type=int, default=4)
+    parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help="Device to use for training")
     parser.add_argument('--num-workers', type=int, default=0)
     parser.add_argument('--pin-memory', action='store_true')
@@ -66,7 +66,7 @@ def main():
     )
 
     # Initialize the model
-    model = ResNetAutoencoder(
+    model = CNNAutoencoder(
         height=dataset.height,
         width=dataset.width,
         latent_dim=args.latent_dim,

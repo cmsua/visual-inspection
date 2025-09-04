@@ -7,7 +7,7 @@ from skimage.metrics import structural_similarity as ssim
 def pixelwise_inference(
     baseline_hexaboard: np.ndarray,
     new_hexaboard: np.ndarray,
-    threshold: float
+    threshold: np.ndarray,
 ) -> List[Tuple[int, int]]:
     """
     Performs pixel-wise comparison between the baseline and new hexaboard images and
@@ -44,7 +44,7 @@ def pixelwise_inference(
             new_segment = new_hexaboard[h, v]
             ssim_val = ssim(baseline_segment, new_segment, data_range=1.0, channel_axis=2)
 
-            if ssim_val < threshold:
+            if ssim_val < threshold[h, v]:
                 flagged_segments.append((h, v))
 
     return flagged_segments

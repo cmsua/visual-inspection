@@ -5,17 +5,17 @@ from skimage.metrics import structural_similarity as ssim
 
 import torch
 
-from ..models import ResNetAutoencoder
+from ..models import CNNAutoencoder
 
 
 @torch.no_grad()
 def autoencoder_inference(
     hexaboard: np.ndarray,
-    threshold: float,
+    threshold: np.ndarray,
     latent_dim: int = 128,
     init_filters: int = 64,
     layers: List[int] = [2, 2, 2],
-    best_model_path: str = './logs/ResNetAutoencoder/best/run_01.pt',
+    best_model_path: str = './logs/CNNAutoencoder/best/run_01.pt',
     device: Union[torch.device, str] = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
 ) -> List[Tuple[int, int]]:
     """
@@ -28,7 +28,7 @@ def autoencoder_inference(
         5D array with shape (H_seg, V_seg, height, width, num_channels) representing a single hexaboard.
     threshold : float
         The SSIM threshold below which segments are flagged.
-    device : Union[torch.device, str]
+    device : torch.device or str
         The device to run the inference on.
     best_model_path : str
         The path to the model checkpoint.
@@ -52,7 +52,7 @@ def autoencoder_inference(
     device = torch.device(device) if isinstance(device, str) else device
     
     # Load model
-    model = ResNetAutoencoder(
+    model = CNNAutoencoder(
         height=height,
         width=width,
         latent_dim=latent_dim,
@@ -75,7 +75,7 @@ def autoencoder_inference(
             true = segment[0].permute(1, 2, 0).cpu().numpy()
             ssim_val = ssim(pred, true, data_range=1.0, channel_axis=2)
 
-            if ssim_val < threshold:
+            if ssim_val < threshold[h, v]:
                 flagged_segments.append((h, v))
 
     return flagged_segments
