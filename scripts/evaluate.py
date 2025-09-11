@@ -9,24 +9,24 @@ from torchvision import transforms
 
 from src.models import CNNAutoencoder
 from src.utils.data import HexaboardDataset
-from src.utils.viz import plot_reconstructions
+from src.utils.viz import plot_ae_comparison
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate a CNNAutoencoder model on hexaboard images.")
 
     # Data I/O arguments
-    parser.add_argument('--test-dataset', type=str, default='./data/test', help="Test data folder")
+    parser.add_argument('--good-hexaboard', type=str, default='./data/test', help="Folder with a good hexaboard")
+    parser.add_argument('--bad-hexaboard', type=str, default='./data/bad_example', help="Folder with a bad hexaboard")
     parser.add_argument('--best-model-path', type=str, default='./logs/CNNAutoencoder/best/run_01.pt', help="Path to the best model weights")
 
     # Model architecture arguments
-    parser.add_argument('--latent-dim', type=int, default=16, help="Bottleneck dimension")
-    parser.add_argument('--init-filters', type=int, default=32, help="Initial number of filters in the model")
+    parser.add_argument('--latent-dim', type=int, default=32, help="Bottleneck dimension")
+    parser.add_argument('--init-filters', type=int, default=128, help="Initial number of filters in the model")
     parser.add_argument('--layers', nargs='+', type=int, default=[2, 2, 2], help="Number of CNN stages and their blocks")
 
     # Plotting arguments
-    parser.add_argument('--num-images', type=int, default=8, help="Number of images to visualize in the output")
-    parser.add_argument('--no-plot', action='store_true', help="Disable plotting of reconstructed images")
+    parser.add_argument('--display-segment-idx', type=int, default=83, help="Segment index to display")
 
     # Dataloading/device arguments
     parser.add_argument('--batch-size', type=int, default=8)
@@ -55,10 +55,19 @@ def main():
         transforms.ToTensor(),
     ])
 
-    # Create the hexaboard dataset
-    dataset = HexaboardDataset(root=args.test_dataset, transform=transform)
-    dataloader = DataLoader(
-        dataset=dataset,
+    # Create the hexaboard datasets
+    good_dataset = HexaboardDataset(root=args.good_hexaboard, transform=transform)
+    bad_dataset = HexaboardDataset(root=args.bad_hexaboard, transform=transform)
+
+    good_dataloader = DataLoader(
+        dataset=good_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        pin_memory=args.pin_memory
+    )
+    bad_dataloader = DataLoader(
+        dataset=bad_dataset,
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
@@ -67,8 +76,8 @@ def main():
 
     # Initialize the model
     model = CNNAutoencoder(
-        height=dataset.height,
-        width=dataset.width,
+        height=good_dataset.height,
+        width=good_dataset.width,
         latent_dim=args.latent_dim,
         init_filters=args.init_filters,
         layers=args.layers
@@ -78,29 +87,50 @@ def main():
     
     # Loss function
     criterion = nn.BCEWithLogitsLoss()
-    test_loss = 0.0
-    y_true_list = []
-    y_pred_list = []
 
-    # Evaluate the model
-    for batch in dataloader:
+    # Evaluation metrics
+    good_test_loss = 0.0
+    y_true_good_list = []
+    y_pred_good_list = []
+    bad_test_loss = 0.0
+    y_true_bad_list = []
+    y_pred_bad_list = []
+
+    # Evaluate the model on the good and bad hexaboards
+    for batch in good_dataloader:
         batch = batch.to(device, non_blocking=args.pin_memory)
         outputs = model(batch)
-        test_loss += criterion(outputs, batch).item()
+        good_test_loss += criterion(outputs, batch).item()
 
-        y_true_list.append(batch.cpu().numpy())
-        y_pred_list.append(torch.sigmoid(outputs).cpu().numpy())
+        y_true_good_list.append(batch.cpu().numpy())
+        y_pred_good_list.append(torch.sigmoid(outputs).cpu().numpy())
 
-    test_loss /= len(dataloader)
+    for batch in bad_dataloader:
+        batch = batch.to(device, non_blocking=args.pin_memory)
+        outputs = model(batch)
+        bad_test_loss += criterion(outputs, batch).item()
 
-    print(f"test_loss: {test_loss}")
+        y_true_bad_list.append(batch.cpu().numpy())
+        y_pred_bad_list.append(torch.sigmoid(outputs).cpu().numpy())
 
-    y_true = np.concatenate(y_true_list, axis=0)
-    y_pred = np.concatenate(y_pred_list, axis=0)
+    good_test_loss /= len(good_dataloader)
+    bad_test_loss /= len(bad_dataloader)
+    print(f"good_test_loss: {good_test_loss}")
+    print(f"bad_test_loss: {bad_test_loss}")
 
-    if not args.no_plot:
-        # Visualize the original vs. reconstructed images
-        plot_reconstructions(y_true, y_pred, num_images=args.num_images)
+    y_true_good = np.concatenate(y_true_good_list, axis=0)
+    y_pred_good = np.concatenate(y_pred_good_list, axis=0)
+    y_true_bad = np.concatenate(y_true_bad_list, axis=0)
+    y_pred_bad = np.concatenate(y_pred_bad_list, axis=0)
+
+    # Visualize the comparison between the good and bad hexaboards
+    plot_ae_comparison(
+        y_true_good=y_true_good,
+        y_pred_good=y_pred_good,
+        y_true_bad=y_true_bad,
+        y_pred_bad=y_pred_bad,
+        segment_idx=args.display_segment_idx
+    )
 
 
 if __name__ == '__main__':

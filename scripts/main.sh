@@ -5,7 +5,7 @@
 #SBATCH --time=24:00:00
 #SBATCH --output=$HOME/logs/slurm-%j.out
 #SBATCH --error=$HOME/logs/slurm-%j.out
-#SBATCH --mail-user=tpnguyen8@crimson.ua.edu
+#SBATCH --mail-user=youremail@example.com
 #SBATCH --mail-type=ALL
 
 # Activate the virtual environment

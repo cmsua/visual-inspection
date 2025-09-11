@@ -55,39 +55,44 @@ This project implements an automated visual inspection system that combines:
 
 ### Model Architecture
 
-The system uses a ResNet-inspired convolutional autoencoder (`ResNetAutoencoder`) with the following key features:
+The system uses a compact convolutional autoencoder (`CNNAutoencoder`) with the following key features:
 
-- **Encoder**: Based on ResNet architecture with BasicBlock modules, progressively downsampling the input
-- **Bottleneck**: Compressed latent representation (default: 128 dimensions)
-- **Decoder**: Symmetric upsampling path using ConvTranspose2d layers to reconstruct the original image
+- **Encoder**: Stacked convolutional stages (no residual blocks) that progressively reduce spatial resolution to a compact bottleneck
+- **Bottleneck**: Compressed latent representation (default: 32 dimensions)
+- **Decoder**: Symmetric upsampling path using `ConvTranspose2d` layers to reconstruct the original image
+- **Normalization**: `GroupNorm` layers are used in place of per-spatial `LayerNorm` to support variable spatial sizes
 - **Loss Function**: `BCEWithLogitsLoss` for pixel-wise reconstruction
 
-The model is designed to learn the normal appearance of hexaboard segments. During inference, segments with poor reconstruction quality (low SSIM scores) are flagged as potentially defective.
+The model is trained to reproduce normal hexaboard segments; during inference, segments with poor reconstruction quality (low SSIM or large AE reconstruction error) are flagged as potential defects.
 
 ### Training the Model
 
-To train the autoencoder on your hexaboard data:
+To train the CNN autoencoder on your hexaboard data:
 
 ```bash
 python -m scripts.train \
-    --data-path ./data/ref_image_array.npy \
-    --latent-dim 128 \
-    --batch-size 4 \
-    --num-epochs 100 \
+    --train-dataset ./data/train \
+    --val-dataset ./data/val \
+    --latent-dim 32 \
+    --init-filters 128 \
+    --layers 2 2 2 \
+    --batch-size 8 \
+    --num-epochs 50 \
     --learning-rate 1e-3 \
     --device cuda
 ```
 
 **Key training arguments:**
-- `--data-path`: Path to the reference hexaboard image array (.npy file)
-- `--latent-dim`: Bottleneck dimension (default: 128)
-- `--init-filters`: Initial number of filters (default: 64)
-- `--layers`: ResNet layer configuration (default: [2, 2, 2])
-- `--batch-size`: Training batch size (default: 4)
-- `--num-epochs`: Number of training epochs (default: 100)
-- `--learning-rate`: Learning rate (default: 1e-3)
-- `--early-stopping-patience`: Early stopping patience (default: 10)
-- `--log-dir`: Directory to save model checkpoints (default: ./logs)
+- `--train-dataset`: Path to the training data folder (default: `./data/train`)
+- `--val-dataset`: Path to the validation data folder (default: `./data/val`)
+- `--latent-dim`: Bottleneck dimension (default: `32`)
+- `--init-filters`: Initial number of filters (default: `128`)
+- `--layers`: Number of CNN stages and their block counts (default: `[2, 2, 2]`)
+- `--batch-size`: Training batch size (default: `8`)
+- `--num-epochs`: Number of training epochs (default: `50`)
+- `--learning-rate`: Learning rate (default: `1e-3`)
+- `--early-stopping-patience`: Early stopping patience (default: `5`)
+- `--log-dir`: Directory to save model checkpoints (default: `./logs`)
 
 ### Evaluating the Model
 
@@ -95,16 +100,22 @@ To evaluate the trained model and visualize reconstructions:
 
 ```bash
 python -m scripts.evaluate \
-    --data-path ./data/ref_image_array.npy \
-    --best-model-path ./logs/ResNetAutoencoder/best/run_01.pt \
-    --batch-size 4 \
-    --num-images 8
+    --good-hexaboard ./data/test \
+    --bad-hexaboard ./data/bad_example \
+    --best-model-path ./logs/CNNAutoencoder/best/run_01.pt \
+    --latent-dim 32 \
+    --init-filters 128 \
+    --layers 2 2 2 \
+    --batch-size 8 \
+    --display-segment-idx 83 \
+    --device cuda
 ```
 
 **Key evaluation arguments:**
-- `--best-model-path`: Path to the trained model weights
-- `--num-images`: Number of reconstruction examples to visualize (default: 8)
-- `--no-plot`: Disable plotting of reconstructed images
+- `--good-hexaboard`: Folder containing a good hexaboard (default: `./data/test`)
+- `--bad-hexaboard`: Folder containing a bad hexaboard (default: `./data/bad_example`)
+- `--best-model-path`: Path to the trained model weights (default: `./logs/CNNAutoencoder/best/run_01.pt`)
+- `--display-segment-idx`: Segment index to display (default: `83`)
 
 ## Run the Inspection
 
@@ -116,9 +127,11 @@ To perform visual inspection on hexaboard images:
 python -m src.inspection.main \
     --baseline-images-path ./data/baseline_hexaboard.npy \
     --new-images-path ./data/test_hexaboard.npy \
-    --best-model-path ./logs/ResNetAutoencoder/best/run_01.pt \
-    --latent-dim 128 \
-    --batch-size 4
+    --best-model-path ./logs/CNNAutoencoder/best/run_01.pt \
+    --latent-dim 32 \
+    --init-filters 64 \
+    --layers 2 2 2 \
+    --device cuda
 ```
 
 ### Command-line Arguments
@@ -128,11 +141,10 @@ python -m src.inspection.main \
 - `-n, --new-images-path`: Path to new hexaboard images to inspect (.npy file)
 
 **Optional Arguments:**
-- `-w, --best-model-path`: Path to trained model weights (default: ./logs/ResNetAutoencoder/best/run_01.pt)
-- `--latent-dim`: Autoencoder latent dimension (default: 128)
-- `--init-filters`: Initial filter count (default: 64)
-- `--layers`: ResNet layer configuration (default: [2, 2, 2])
-- `--batch-size`: Inference batch size (default: 4)
+- `-w, --best-model-path`: Path to trained model weights (default: `./logs/CNNAutoencoder/best/run_01.pt`)
+- `--latent-dim`: Autoencoder latent dimension (default: `32`)
+- `--init-filters`: Initial filter count (default: `64`)
+- `--layers`: CNN layer configuration (default: `[2, 2, 2]`)
 - `--device`: Computation device (default: auto-detect CUDA/CPU)
 
 ### Expected Input Format
@@ -192,4 +204,5 @@ visual-inspection/
 ├── logs/                  # Model checkpoints and logs
 ├── data/                  # Data directory (add your .npy files here)
 └── notebooks/             # Jupyter notebooks for analysis
+└── calibrations/          # JSON and .npy files for thresholds calibration
 ```

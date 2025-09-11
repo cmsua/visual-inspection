@@ -25,20 +25,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--checkpoint', type=str, default=None, help="Path to an existing checkpoint to resume from")
 
     # Model architecture arguments
-    parser.add_argument('--latent-dim', type=int, default=16, help="Bottleneck dimension")
-    parser.add_argument('--init-filters', type=int, default=32, help="Initial number of filters in the model")
+    parser.add_argument('--latent-dim', type=int, default=32, help="Bottleneck dimension")
+    parser.add_argument('--init-filters', type=int, default=128, help="Initial number of filters in the model")
     parser.add_argument('--layers', nargs='+', type=int, default=[2, 2, 2], help="Number of CNN stages and their blocks")
 
     # Training hyperparameters arguments
     parser.add_argument('--train-val-test-split', type=float, nargs=3, default=[0.8, 0.1, 0.1])
     parser.add_argument('--batch-size', type=int, default=8)
-    parser.add_argument('--num-epochs', type=int, default=10)
+    parser.add_argument('--num-epochs', type=int, default=50)
     parser.add_argument('--learning-rate', type=float, default=1e-3)
     parser.add_argument('--exponential-lr-gamma', type=float, default=0.96)
     parser.add_argument('--early-stopping-patience', type=int, default=5)
 
     # Logging/plotting arguments
-    parser.add_argument('--logging-steps', type=int, default=10, help="Steps between logging")
+    parser.add_argument('--logging-steps', type=int, default=25, help="Steps between logging")
     parser.add_argument('--plot-history', action='store_true', help="Plot training history after training")
 
     # Dataloading/device arguments

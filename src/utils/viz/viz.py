@@ -1,9 +1,10 @@
 import random
 from PIL import Image
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from skimage.metrics import structural_similarity as ssim
 
 
@@ -196,7 +197,7 @@ def plot_ae_comparison(
     m1, diff1 = ssim(seg_good, recon_seg_good, data_range=1.0, channel_axis=2, full=True)
     m2, diff2 = ssim(seg_bad, recon_seg_bad, data_range=1.0, channel_axis=2, full=True)
 
-    _, axes = plt.subplots(2, 3, figsize=(10, 7), dpi=300)
+    _, axes = plt.subplots(2, 3, figsize=(10, 5), dpi=300)
 
     # Original segments
     axes[0, 0].imshow(np.clip(seg_good, 0, 1))
@@ -269,6 +270,52 @@ def plot_history(history: Dict[str, List[float]]) -> None:
     plt.ylabel("Accuracy")
     plt.legend()
     plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_threshold_comparison(
+    optimal_threshold: np.ndarray,
+    bad_ssims: np.ndarray,
+    good_ssims: np.ndarray,
+    figsize: Tuple[int, int] = (15, 4)
+) -> None:
+    # Validate inputs
+    opt = np.asarray(optimal_threshold, dtype=float)
+    bad = np.asarray(bad_ssims, dtype=float)
+    good = np.asarray(good_ssims, dtype=float)
+
+    if opt.shape != bad.shape or opt.shape != good.shape:
+        raise ValueError("All input arrays must have the same shape")
+
+    H, W = opt.shape
+
+    vmin = float(np.nanmin([opt, bad, good]))
+    vmax = float(np.nanmax([opt, bad, good]))
+
+    fig, axes = plt.subplots(1, 3, figsize=figsize)
+    titles = ["Optimal Threshold", "Bad SSIMs", "Good SSIMs"]
+    arrays = [opt, bad, good]
+
+    for idx, (ax, arr, t) in enumerate(zip(axes, arrays, titles)):
+        sns.heatmap(
+            arr,
+            ax=ax,
+            cmap='coolwarm',
+            vmin=vmin,
+            vmax=vmax,
+            annot=True,
+            fmt='.3f',
+            annot_kws={'fontsize': 8},
+            cbar=idx == 0,
+            square=False
+        )
+        ax.set_title(t)
+        ax.set_xlabel('V_seg')
+        ax.set_ylabel('H_seg')
+
+    fig.suptitle("Threshold Comparison")
 
     plt.tight_layout()
     plt.show()
