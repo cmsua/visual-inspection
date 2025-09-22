@@ -12,7 +12,7 @@ The High Granularity Calorimeter (HGCAL) is a key component of the CMS detector 
 Hexaboards are critical silicon sensor modules that form the active detection layers of the HGCAL endcap calorimeter. These hexagonal-shaped boards contain arrays of silicon pad sensors that measure the energy deposits from electromagnetic and hadronic showers. Each hexaboard must meet strict quality standards, as defects can significantly impact the detector's performance in measuring particle energies and positions with high precision.
 
 This project implements an automated visual inspection system that combines:
-- **Autoencoder-based anomaly detection**: A ResNet-inspired convolutional autoencoder trained on reference images to detect reconstruction anomalies
+- **Autoencoder-based anomaly detection**: A convolutional autoencoder trained on reference images to detect reconstruction anomalies
 - **Pixel-wise comparison**: Traditional image comparison using Structural Similarity Index Measure (SSIM) between baseline and test images
 - **Dual flagging system**: Segments are classified as defective if flagged by either or both methods, providing comprehensive defect detection
 
@@ -60,76 +60,68 @@ The system uses a compact convolutional autoencoder (`CNNAutoencoder`) with the 
 - **Encoder**: Stacked convolutional stages (no residual blocks) that progressively reduce spatial resolution to a compact bottleneck
 - **Bottleneck**: Compressed latent representation (default: 32 dimensions)
 - **Decoder**: Symmetric upsampling path using `ConvTranspose2d` layers to reconstruct the original image
-- **Normalization**: `GroupNorm` layers are used in place of per-spatial `LayerNorm` to support variable spatial sizes
 - **Loss Function**: `BCEWithLogitsLoss` for pixel-wise reconstruction
 
 The model is trained to reproduce normal hexaboard segments; during inference, segments with poor reconstruction quality (low SSIM or large AE reconstruction error) are flagged as potential defects.
 
-### Training the Model
+### Train the Model
 
-To train the CNN autoencoder on your hexaboard data:
+Training is driven by a YAML configuration file that defines the model architecture and training hyperparameters.
+
+To train the CNN autoencoder with a config file:
 
 ```bash
 python -m scripts.train \
-    --train-dataset ./data/train \
-    --val-dataset ./data/val \
-    --latent-dim 32 \
-    --init-filters 128 \
-    --layers 2 2 2 \
-    --batch-size 8 \
-    --num-epochs 50 \
-    --learning-rate 1e-3 \
-    --device cuda
+    --config-path ./configs/train_CNNAutoencoder.yaml \
+    --checkpoint-path ./logs/CNNAutoencoder/checkpoint.pt \
+    --train-data-dir ./data/train \
+    --val-data-dir ./data/val
 ```
 
 **Key training arguments:**
-- `--train-dataset`: Path to the training data folder (default: `./data/train`)
-- `--val-dataset`: Path to the validation data folder (default: `./data/val`)
-- `--latent-dim`: Bottleneck dimension (default: `32`)
-- `--init-filters`: Initial number of filters (default: `128`)
-- `--layers`: Number of CNN stages and their block counts (default: `[2, 2, 2]`)
-- `--batch-size`: Training batch size (default: `8`)
-- `--num-epochs`: Number of training epochs (default: `50`)
-- `--learning-rate`: Learning rate (default: `1e-3`)
-- `--early-stopping-patience`: Early stopping patience (default: `5`)
-- `--log-dir`: Directory to save model checkpoints (default: `./logs`)
+- `--config-path`: Path to the YAML training config (default: `./configs/train_CNNAutoencoder.yaml`)
+- `--checkpoint-path`: Optional checkpoint to resume training from (default: `None`)
+- `--train-data-dir`: Folder containing training hexaboard `.npy` files (default: `./data/train`)
+- `--val-data-dir`: Folder containing validation hexaboard `.npy` files (default: `./data/val`)
 
-### Evaluating the Model
+Model and optimization specifics (batch size, optimizer, scheduler, loss, number of epochs, early stopping, etc.) are controlled by the YAML file referenced by `--config-path`.
 
-To evaluate the trained model and visualize reconstructions:
+### Evaluate the Model
+
+To evaluate the trained model and visualize reconstructions (uses a YAML config to reconstruct the model architecture):
 
 ```bash
 python -m scripts.evaluate \
-    --good-hexaboard ./data/test \
-    --bad-hexaboard ./data/bad_example \
+    --config-path ./configs/train_CNNAutoencoder.yaml \
     --best-model-path ./logs/CNNAutoencoder/best/run_01.pt \
-    --latent-dim 32 \
-    --init-filters 128 \
-    --layers 2 2 2 \
-    --batch-size 8 \
-    --display-segment-idx 83 \
-    --device cuda
+    --good-hexaboard-dir ./data/test \
+    --bad-hexaboard-dir ./data/bad_example \
+    --display-segment-idx 83
 ```
 
 **Key evaluation arguments:**
-- `--good-hexaboard`: Folder containing a good hexaboard (default: `./data/test`)
-- `--bad-hexaboard`: Folder containing a bad hexaboard (default: `./data/bad_example`)
+- `--config-path`: Path to the YAML config used to build the model (default: `./configs/train_CNNAutoencoder.yaml`)
 - `--best-model-path`: Path to the trained model weights (default: `./logs/CNNAutoencoder/best/run_01.pt`)
-- `--display-segment-idx`: Segment index to display (default: `83`)
+- `--good-hexaboard-dir`: Folder containing a good hexaboard (default: `./data/test`)
+- `--bad-hexaboard-dir`: Folder containing a bad hexaboard (default: `./data/bad_example`)
+- `--display-segment-idx`: Segment index to display in the reconstruction plot (default: `83`)
 
 ## Run the Inspection
 
-### Basic Usage
+### Basic usage
 
-To perform visual inspection on hexaboard images:
+To run the inspection pipeline (pixel-wise + autoencoder) on a new hexaboard:
 
 ```bash
-python -m src.inspection.main \
-    --baseline-images-path ./data/baseline_hexaboard.npy \
-    --new-images-path ./data/test_hexaboard.npy \
-    --best-model-path ./logs/CNNAutoencoder/best/run_01.pt \
+python -m scripts.inspection \
+    -b ./data/baseline_hexaboard.npy \
+    -n ./data/test_hexaboard.npy \
+    --ae-threshold-path ./calibrations/ae_threshold.npy \
+    --pw-threshold-path ./calibrations/pw_threshold.npy \
+    --skipped-segments-path ./calibrations/skipped_segments.json \
+    -w ./logs/CNNAutoencoder/best/run_01.pt \
     --latent-dim 32 \
-    --init-filters 64 \
+    --init-filters 128 \
     --layers 2 2 2 \
     --device cuda
 ```
@@ -137,13 +129,16 @@ python -m src.inspection.main \
 ### Command-line Arguments
 
 **Required Arguments:**
-- `-b, --baseline-images-path`: Path to baseline hexaboard images (.npy file)
-- `-n, --new-images-path`: Path to new hexaboard images to inspect (.npy file)
+- `-b, --baseline-hexaboard-path`: Path to baseline hexaboard images (.npy file)
+- `-n, --new-hexaboard-path`: Path to new hexaboard images to inspect (.npy file)
 
 **Optional Arguments:**
+- `-s, --skipped-segments-path`: JSON file listing segments to skip (default: `./calibrations/skipped_segments.json`)
+- `--ae-threshold-path`: Path to autoencoder per-segment threshold `.npy` (default: `./calibrations/ae_threshold.npy`)
+- `--pw-threshold-path`: Path to pixel-wise per-segment threshold `.npy` (default: `./calibrations/pw_threshold.npy`)
 - `-w, --best-model-path`: Path to trained model weights (default: `./logs/CNNAutoencoder/best/run_01.pt`)
 - `--latent-dim`: Autoencoder latent dimension (default: `32`)
-- `--init-filters`: Initial filter count (default: `64`)
+- `--init-filters`: Initial filter count (default: `128`)
 - `--layers`: CNN layer configuration (default: `[2, 2, 2]`)
 - `--device`: Computation device (default: auto-detect CUDA/CPU)
 
@@ -155,10 +150,10 @@ The input `.npy` files should contain hexaboard image arrays with shape:
 ```
 
 Where:
-- `H_seg`: Number of horizontal segments (typically 12)
-- `V_seg`: Number of vertical segments (typically 9)
-- `height, width`: Pixel dimensions of each segment
-- `num_channels`: Color channels (3 for RGB)
+- `H_seg`: Number of horizontal segments (`13`)
+- `V_seg`: Number of vertical segments (`9`)
+- `height, width`: Pixel dimensions of each segment `(1016, 1640)`
+- `num_channels`: Color channels (`3`)
 
 ### Output
 
