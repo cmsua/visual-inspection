@@ -5,16 +5,15 @@ from typing import Tuple
 import pytest
 
 import torch
-from torch import nn, optim
+from torchvision import transforms
 
+from src.configs import TrainConfig
 from src.engine import AutoencoderTrainer
 from src.models import CNNAutoencoder
+from src.utils import set_seed
 from src.utils.data import HexaboardDataset
 
-torch.manual_seed(42)
-torch.cuda.manual_seed_all(42)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+set_seed(42)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 DATA_DIR = './data'
@@ -28,9 +27,15 @@ def temp_dir():
 
 
 def make_datasets() -> Tuple[HexaboardDataset, ...]:
-    train_dataset = HexaboardDataset(root=DATA_DIR + '/train')
-    val_dataset = HexaboardDataset(root=DATA_DIR + '/val')
-    test_dataset = HexaboardDataset(root=DATA_DIR + '/test')
+    # Convert np.ndarray to torch.Tensor: (H, W, C) -> (C, H, W)
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+    ])
+
+    # Use folders with less sample for speed
+    train_dataset = HexaboardDataset(root=DATA_DIR + '/val', transform=transform)
+    val_dataset = HexaboardDataset(root=DATA_DIR + '/test', transform=transform)
+    test_dataset = HexaboardDataset(root=DATA_DIR + '/bad_example', transform=transform)
 
     return train_dataset, val_dataset, test_dataset
 
@@ -43,25 +48,46 @@ def make_trainer(temp_dir: str) -> AutoencoderTrainer:
     model = CNNAutoencoder(
         height=1016,
         width=1640,
-        latent_dim=16,
-        init_filters=32,
+        latent_dim=64,
+        init_filters=128,
         layers=[2, 2, 2]
     ).to(device)
 
+    # Training configurations
+    train_config = TrainConfig(
+        batch_size=8,
+        criterion={
+            'name': 'bce_with_logits_loss',
+            'kwargs': {
+                'reduction': 'mean'
+            }
+        },
+        optimizer={
+            'name': 'adam',
+            'kwargs': {
+                'lr': 1e-3,
+                'weight_decay': 1e-4
+            }
+        },
+        num_epochs=1,
+        logging_dir=temp_dir,
+        logging_steps=25,
+        progress_bar=True,
+        save_best=True,
+        save_ckpt=True,
+        save_fig=False,
+        num_workers=0,
+        pin_memory=True
+    )
+
     # Initialize the trainer
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
     trainer = AutoencoderTrainer(
         model=model,
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         test_dataset=test_dataset,
-        criterion=criterion,
-        optimizer=optimizer,
-        batch_size=4,
-        num_epochs=1,
-        logging_dir=temp_dir,
-        device=device
+        device=device,
+        config=train_config
     )
 
     return trainer
@@ -100,7 +126,7 @@ def test_evaluate_model(temp_dir: str) -> None:
     trainer.train()
 
     # Evaluate the model
-    test_loss, _, y_true, y_pred = trainer.evaluate()
+    test_loss, y_true, y_pred = trainer.evaluate()
 
     # Check if the evaluation returns valid results
     assert test_loss >= 0, "Test loss should be non-negative."

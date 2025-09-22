@@ -1,8 +1,9 @@
 *.pyc
 __pycache__/
-data/*
-!data/.gitkeep
-venv/*
 .pytest_cache/
 .vscode/
 checkpoints/
+data/*
+!data/.gitkeep
+docker/*
+venv/*
