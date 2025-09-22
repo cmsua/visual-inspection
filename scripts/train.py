@@ -1,16 +1,15 @@
 import os
+import yaml
 import argparse
 
-import numpy as np
-
 import torch
-from torch import nn, optim
+import torch.multiprocessing as mp
 from torchvision import transforms
 
-from src.configs import TrainConfig
+from src.configs import CNNAutoencoderConfig, TrainConfig
 from src.engine import AutoencoderTrainer
 from src.models import CNNAutoencoder
-from src.utils import EarlyStopping
+from src.utils import set_seed, setup_ddp, cleanup_ddp
 from src.utils.data import HexaboardDataset
 from src.utils.viz import plot_history
 
@@ -18,47 +17,34 @@ from src.utils.viz import plot_history
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a CNNAutoencoder model on hexaboard images.")
 
-    # Data I/O arguments
-    parser.add_argument('--train-dataset', type=str, default='./data/train', help="Train data folder")
-    parser.add_argument('--val-dataset', type=str, default='./data/val', help="Validation data folder")
-    parser.add_argument('--log-dir', type=str, default='./logs', help="Model weights & checkpoints directory")
-    parser.add_argument('--checkpoint', type=str, default=None, help="Path to an existing checkpoint to resume from")
+    # Model and configurations arguments
+    parser.add_argument('--config-path', type=str, default='./configs/train_CNNAutoencoder.yaml', help="Path to YAML config")
+    parser.add_argument('--checkpoint-path', type=str, default=None, help="Checkpoint to restore trainer state")
 
-    # Model architecture arguments
-    parser.add_argument('--latent-dim', type=int, default=32, help="Bottleneck dimension")
-    parser.add_argument('--init-filters', type=int, default=128, help="Initial number of filters in the model")
-    parser.add_argument('--layers', nargs='+', type=int, default=[2, 2, 2], help="Number of CNN stages and their blocks")
-
-    # Training hyperparameters arguments
-    parser.add_argument('--train-val-test-split', type=float, nargs=3, default=[0.8, 0.1, 0.1])
-    parser.add_argument('--batch-size', type=int, default=8)
-    parser.add_argument('--num-epochs', type=int, default=50)
-    parser.add_argument('--learning-rate', type=float, default=1e-3)
-    parser.add_argument('--exponential-lr-gamma', type=float, default=0.96)
-    parser.add_argument('--early-stopping-patience', type=int, default=5)
-
-    # Logging/plotting arguments
-    parser.add_argument('--logging-steps', type=int, default=25, help="Steps between logging")
-    parser.add_argument('--plot-history', action='store_true', help="Plot training history after training")
-
-    # Dataloading/device arguments
-    parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help="Device to use for training")
-    parser.add_argument('--num-workers', type=int, default=0)
+    # Data loading arguments
+    parser.add_argument('--train-data-dir', type=str, default='./data/train', help="Train data folder")
+    parser.add_argument('--val-data-dir', type=str, default='./data/val', help="Validation data folder")
 
     return parser.parse_args()
 
 
-def main():
-    # Parse command-line arguments
-    args = parse_args()
+def main(
+    rank: int,
+    world_size: int,
+    config_path: str,
+    checkpoint_path: str = None,
+    train_data_dir: str = './data/train',
+    val_data_dir: str = './data/val',
+):
+    # Load the YAML file
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
 
-    # Reproducibility settings
-    np.random.seed(42)
-    torch.manual_seed(42)
-    torch.cuda.manual_seed_all(42)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    device = torch.device(args.device)
+    model_config = CNNAutoencoderConfig.from_dict(config['model'])
+    train_config = TrainConfig.from_dict(config['train'])
+
+    # Initialize multi-GPU processing
+    setup_ddp(rank, world_size)
 
     # Convert np.ndarray to torch.Tensor: (H, W, C) -> (C, H, W)
     transform = transforms.Compose([
@@ -66,63 +52,71 @@ def main():
     ])
 
     # Create the hexaboard datasets
-    train_dataset = HexaboardDataset(root=args.train_dataset, transform=transform)
-    val_dataset = HexaboardDataset(root=args.val_dataset, transform=transform)
+    train_dataset = HexaboardDataset(root=train_data_dir, transform=transform)
+    val_dataset = HexaboardDataset(root=val_data_dir, transform=transform)
 
     # Initialize the model
-    model = CNNAutoencoder(
-        height=train_dataset.height,
-        width=train_dataset.width,
-        latent_dim=args.latent_dim,
-        init_filters=args.init_filters,
-        layers=args.layers
-    ).to(device)
-    
-    # Training configurations
-    train_config = TrainConfig(
-        batch_size=args.batch_size,
-        num_epochs=args.num_epochs,
-        start_epoch=0,
-        logging_dir=args.log_dir,
-        logging_steps=args.logging_steps,
-        device=args.device,
-        num_workers=args.num_workers,
-        pin_memory=device.type == 'cuda',
-    )
+    device = torch.device(f'cuda:{rank}' if torch.cuda.is_available() else 'cpu')
+    model = CNNAutoencoder(config=model_config).to(device)
 
     # Initialize the trainer
-    learning_rate = args.learning_rate
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
-    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=args.exponential_lr_gamma)
-    callbacks = EarlyStopping(monitor='val_loss', mode='min', patience=args.early_stopping_patience)
     trainer = AutoencoderTrainer(
         model=model,
         train_dataset=train_dataset,
         val_dataset=val_dataset,
-        test_dataset=None,
-        criterion=criterion,
-        optimizer=optimizer,
-        scheduler=scheduler,
-        callbacks=[callbacks],
+        device=device,
         config=train_config
     )
 
     # Resume from checkpoint if provided
-    if args.checkpoint and os.path.exists(args.checkpoint):
-        print(f"Resuming from checkpoint: {args.checkpoint}")
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        print(f"Resuming from checkpoint: {checkpoint_path}")
+
         try:
-            trainer.load_checkpoint(args.checkpoint)
+            trainer.load_checkpoint(checkpoint_path)
         except Exception as e:
             print(f"Error loading checkpoint: {e}")
 
     # Train the model
     history, model = trainer.train()
 
-    # Visualize training history (optional)
-    if args.plot_history:
-        plot_history(history)
+    # Clean up distributed processing
+    cleanup_ddp()
+
+    # Save the training history plot
+    output_path = os.path.join(trainer.outputs_dir, f"{trainer.run_name}.png") if train_config.save_fig else None
+    plot_history(history, save_fig=output_path)
 
 
 if __name__ == '__main__':
-    main()
+    # Parse command-line arguments
+    args = parse_args()
+
+    # Reproducibility settings
+    set_seed(42)
+
+    # Multi-GPU processing
+    world_size = torch.cuda.device_count()
+    if world_size > 1:
+        print(f"Using {world_size} GPUs for training")
+        mp.spawn(
+            main,
+            args=(
+                world_size,
+                args.config_path,
+                args.checkpoint_path,
+                args.train_data_dir,
+                args.val_data_dir
+            ),
+            nprocs=world_size
+        )
+    else:
+        # 1 GPU or CPU: run the same code on rank 0
+        main(
+            rank=0,
+            world_size=1,
+            config_path=args.config_path,
+            checkpoint_path=args.checkpoint_path,
+            train_data_dir=args.train_data_dir,
+            val_data_dir=args.val_data_dir,
+        )

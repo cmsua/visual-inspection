@@ -1,1 +1,2 @@
-from .trainer import AutoencoderTrainer, Trainer
+from .trainer import Trainer
+from .ae_trainer import AutoencoderTrainer

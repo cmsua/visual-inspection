@@ -1,7 +1,8 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
-import torch
 from torch import nn, Tensor
+
+from ..configs import CNNAutoencoderConfig
 
 
 class CNNAutoencoder(nn.Module):
@@ -11,43 +12,59 @@ class CNNAutoencoder(nn.Module):
 
     Parameters
     ----------
-    height : int
+    config: CNNAutoencoderConfig, optional
+        Configuration object containing model parameters.
+    height : int, optional
         Height of the input images.
-    width : int
+    width : int, optional
         Width of the input images.
-    latent_dim : int
+    latent_dim : int, optional
         Dimension of the latent (bottleneck) vector.
-    init_filters : int
+    init_filters : int, optional
         Number of filters in the first convolutional layer (stem).
-    layers : List[int]
+    layers : List[int], optional
         Number of Conv-BN-ReLU blocks in each encoder stage.
     """
     def __init__(
         self,
-        height: int,
-        width: int,
-        latent_dim: int = 16,
-        init_filters: int = 64,
-        layers: List[int] = [2, 2, 2, 2]
+        config: Optional[CNNAutoencoderConfig] = None,
+        # Parameters below can override config if supplied explicitly
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        latent_dim: Optional[int] = None,
+        init_filters: Optional[int] = None,
+        layers: Optional[List[int]] = None,
     ):
         super().__init__()
-        self.height = height
-        self.width = width
+        
+        # Use config if provided, otherwise use defaults
+        if config is not None:
+            self.height = height if height is not None else config.height
+            self.width = width if width is not None else config.width
+            self.latent_dim = latent_dim if latent_dim is not None else config.latent_dim
+            self.init_filters = init_filters if init_filters is not None else config.init_filters
+            self.layers = layers if layers is not None else config.layers
+        else:
+            self.height = height if height is not None else 1016
+            self.width = width if width is not None else 1640
+            self.latent_dim = latent_dim if latent_dim is not None else 32
+            self.init_filters = init_filters if init_filters is not None else 128
+            self.layers = layers if layers is not None else [2, 2, 2]
 
         # Encoder
-        self.conv1 = nn.Conv2d(3, init_filters, kernel_size=(10, 16), stride=(5, 8), padding=(5, 0), bias=False)
-        self.bn1 = nn.GroupNorm(1, init_filters)
+        self.conv1 = nn.Conv2d(3, self.init_filters, kernel_size=(10, 16), stride=(5, 8), padding=(5, 0), bias=True)
+        self.bn1 = nn.GroupNorm(1, self.init_filters)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.encoder_layers = nn.ModuleList()
-        in_channels = init_filters
+        in_channels = self.init_filters
 
-        for i, num_blocks in enumerate(layers):
+        for i, num_blocks in enumerate(self.layers):
             if i == 0:
                 out_channels = in_channels
-            elif i == len(layers) - 1:
-                out_channels = latent_dim
+            elif i == len(self.layers) - 1:
+                out_channels = self.latent_dim
             else:
                 out_channels = in_channels * 2
 
@@ -76,18 +93,18 @@ class CNNAutoencoder(nn.Module):
         assert stem_square_size == ((conv1_out_width + 2 - 3) // 2 + 1), "Stem must yield a square map."
 
         # Encoder output per stage
-        encoder_channels = [init_filters]
+        encoder_channels = [self.init_filters]
 
-        for i in range(1, len(layers) - 1):
+        for i in range(1, len(self.layers) - 1):
             encoder_channels.append(encoder_channels[-1] * 2)
 
-        encoder_channels.append(latent_dim)
+        encoder_channels.append(self.latent_dim)
 
         # Spatial size per stage
         stage_out = [stem_square_size]
-        stage_conv = [None] * len(layers)
+        stage_conv = [None] * len(self.layers)
 
-        for i in range(1, len(layers)):
+        for i in range(1, len(self.layers)):
             stride_conv = (stage_out[i - 1] - 1) // 2 + 1
             stride_pool = stride_conv // 2
             stage_conv[i] = stride_conv
@@ -96,7 +113,7 @@ class CNNAutoencoder(nn.Module):
         # Decoder
         self.decoder_layers = nn.ModuleList()
 
-        for i in range(len(layers) - 1, 0, -1):
+        for i in range(len(self.layers) - 1, 0, -1):
             in_channels = encoder_channels[i]
             mid_channels = encoder_channels[i - 1]
 
@@ -111,7 +128,7 @@ class CNNAutoencoder(nn.Module):
                         stride=2,
                         padding=1,
                         output_padding=int(output_padding1),
-                        bias=False
+                        bias=True
                     ),
                     nn.GroupNorm(1, mid_channels),
                     nn.ReLU(inplace=True),
@@ -131,7 +148,7 @@ class CNNAutoencoder(nn.Module):
                         stride=2,
                         padding=1,
                         output_padding=int(output_padding2),
-                        bias=False
+                        bias=True
                     ),
                     nn.GroupNorm(1, mid_channels),
                     nn.ReLU(inplace=True),
@@ -147,7 +164,7 @@ class CNNAutoencoder(nn.Module):
                     kernel_size=2,
                     stride=2,
                     padding=0,
-                    bias=False
+                    bias=True
                 ),
                 nn.GroupNorm(1, encoder_channels[0]),
                 nn.ReLU(inplace=True),
@@ -157,7 +174,7 @@ class CNNAutoencoder(nn.Module):
         # Invert the stem to original size
         out_height = self.height - ((conv1_out_height - 1) * 5 - 10 + 10)
         out_width = self.width - ((conv1_out_width - 1) * 8 + 16)
-        assert out_height in (0, 1) and out_width in (0, 1), "Stem inverse requires op in {0,1}."
+        assert out_height in (0, 1) and out_width in (0, 1), "Stem inverse requires op in {0, 1}."
 
         self.decoder_layers.append(
             nn.Sequential(
@@ -168,7 +185,7 @@ class CNNAutoencoder(nn.Module):
                     stride=(5, 8),
                     padding=(5, 0),
                     output_padding=(int(out_height), int(out_width)),
-                    bias=False
+                    bias=True
                 )
             )
         )
@@ -185,7 +202,7 @@ class CNNAutoencoder(nn.Module):
 
         # First block (may downsample via stride)
         layers.append(nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=True),
             nn.GroupNorm(1, out_channels),
             nn.ReLU(inplace=True),
         ))
@@ -193,7 +210,7 @@ class CNNAutoencoder(nn.Module):
         # Remaining blocks (stride=1)
         for _ in range(1, blocks):
             layers.append(nn.Sequential(
-                nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+                nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=True),
                 nn.GroupNorm(1, out_channels),
                 nn.ReLU(inplace=True),
             ))

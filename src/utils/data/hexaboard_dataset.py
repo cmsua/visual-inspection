@@ -1,4 +1,4 @@
-from typing import Set, Tuple, Callable, Optional, Union
+from typing import Callable, Optional, Union
 from pathlib import Path
 
 import numpy as np
@@ -6,6 +6,8 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
+
+from .hexaboard_loader import load_hexaboard, load_skipped_segments
 
 
 class HexaboardDataset(Dataset):
@@ -26,8 +28,8 @@ class HexaboardDataset(Dataset):
     ----------
     root : str or Path
         Root directory path containing .npy files, or a single .npy file path for backward compatibility.
-    skipped_segments: Set[Tuple[int, int]], optional
-        A set of (h, v) tuples representing segments to skip during training.
+    skipped_segments_path: str, optional
+        Path to the JSON file containing the list of segments to skip.
     transform : Callable, optional
         A function/transformation that takes in a numpy array of shape
         (height, width, num_channels) and returns a torch.Tensor of shape (num_channels, height, width).
@@ -42,7 +44,7 @@ class HexaboardDataset(Dataset):
     def __init__(
         self,
         root: Union[str, Path],
-        skipped_segments: Optional[Set[Tuple[int, int]]] = None,
+        skipped_segments_path: Optional[str] = None,
         transform: Optional[Callable] = None
     ):
         self.transform = transform
@@ -74,7 +76,7 @@ class HexaboardDataset(Dataset):
             (11, 0), (11, 1), (11, 8),
             (12, 0), (12, 1), (12, 7), (12, 8)
         }
-        self.skipped_segments = skipped_segments if skipped_segments is not None else default_skipped
+        self.skipped_segments = load_skipped_segments(skipped_segments_path) if skipped_segments_path is not None else default_skipped
         
         # Keep only valid indices inside the board shape
         self.skipped_segments = {
@@ -103,10 +105,9 @@ class HexaboardDataset(Dataset):
         seg_idx = idx % self.segs_per_board
         h_idx, v_idx = self.valid_segments[seg_idx]
         
-        # Load the board data and convert BGR to RGB
-        board_data = np.load(self.file_paths[board_idx])
-        board_data = board_data[..., ::-1].copy()
-        segment = board_data[h_idx, v_idx]
+        # Load the hexaboard data and extract the segment
+        hexaboard = load_hexaboard(self.file_paths[board_idx], normalize=False)
+        segment = hexaboard[h_idx, v_idx]
 
         if self.transform:
             tensor = self.transform(segment)

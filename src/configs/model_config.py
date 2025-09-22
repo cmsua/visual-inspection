@@ -1,10 +1,15 @@
-from typing import List
+from typing import List, Dict
 from dataclasses import dataclass
 
 
 @dataclass
-class ModelConfig:
+class CNNAutoencoderConfig:
     height: int
     width: int
     latent_dim: int
-    kernel_sizes: List[int]
+    init_filters: int
+    layers: List[int]
+
+    @classmethod
+    def from_dict(cls, d: Dict):
+        return cls(**d)

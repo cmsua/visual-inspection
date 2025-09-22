@@ -1,0 +1,1 @@
+from .loss_registry import LOSS_REGISTRY

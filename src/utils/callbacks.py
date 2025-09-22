@@ -33,11 +33,11 @@ class EarlyStopping(BaseCallback):
         self.patience = patience
         self.min_delta = min_delta
         self.restore_best_weights = restore_best_weights
-        self.best_score: Optional[float] = None
-        self.wait: int = 0
-        self.stopped_epoch: int = 0
-        self.should_stop: bool = False
-        self.best_weights: Optional[Dict[str, Any]] = None
+        self.best_score = None
+        self.wait = 0
+        self.stopped_epoch = 0
+        self.should_stop = False
+        self.best_weights = None
 
     def _is_improvement(self, current: float) -> bool:
         if self.best_score is None:
@@ -57,6 +57,7 @@ class EarlyStopping(BaseCallback):
     ) -> None:
         if logs is None:
             return
+        
         current = logs.get(self.monitor)
         if current is None:
             return
@@ -65,7 +66,6 @@ class EarlyStopping(BaseCallback):
             self.best_score = current
             self.wait = 0
             if self.restore_best_weights and trainer is not None:
-                # Save best weights in memory
                 self.best_weights = {k: v.cpu().clone() for k, v in trainer.model.state_dict().items()}
         else:
             self.wait += 1
@@ -75,4 +75,11 @@ class EarlyStopping(BaseCallback):
             self.should_stop = True
             if self.restore_best_weights and self.best_weights is not None and trainer is not None:
                 trainer.model.load_state_dict(self.best_weights)
+
             print(f"Early stopping at epoch {epoch + 1}. Best {self.monitor}: {self.best_score:.4f}")
+
+
+CALLBACK_REGISTRY = {
+    'early_stopping': EarlyStopping,
+    # Add more callbacks here as needed
+}

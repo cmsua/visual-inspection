@@ -1,0 +1,45 @@
+model:
+    height: 1016
+    width: 1640
+    latent_dim: 32
+    init_filters: 128
+    layers: [2, 2, 2]
+
+
+train:
+    batch_size: 8
+    criterion:
+        # All supported loss functions can be found in 'src/loss/loss_registry.py'
+        name: 'bce_with_logits_loss'
+        kwargs:
+            reduction: 'mean'  # 'mean', 'sum', 'none'
+    optimizer:
+        # All supported optimizers can be found in 'src/optim/optim_registry.py'
+        name: 'adam'
+        kwargs:
+            lr: 0.001
+            eps: 0.0001
+            weight_decay: 0.0
+    scheduler:
+        # All supported schedulers can be found in 'src/optim/scheduler_registry.py'
+        name: 'exponential_lr'
+        kwargs:
+            gamma: 0.96
+    callbacks: 
+        # All supported callbacks can be found in 'src/utils/callbacks.py'
+        - name: 'early_stopping'
+          kwargs:
+              monitor: 'val_loss'  # 'val_loss' or 'val_acc'
+              mode: 'min'  # 'min' or 'max'
+              patience: 5
+              min_delta: 0.001
+    num_epochs: 50
+    start_epoch: 0
+    logging_dir: 'logs'
+    logging_steps: 25
+    progress_bar: True
+    save_best: True
+    save_ckpt: True
+    save_fig: True
+    num_workers: 0
+    pin_memory: True
