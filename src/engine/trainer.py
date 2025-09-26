@@ -26,7 +26,8 @@ from ..utils import (
     get_loss_from_config,
     get_optim_from_config,
     get_scheduler_from_config,
-    get_callbacks_from_config
+    get_callbacks_from_config,
+    cleanup_ddp
 )
 
 
@@ -44,7 +45,7 @@ class Trainer:
         The dataset to use for validation.
     test_dataset: Dataset, optional
         The dataset to use for testing.
-    device: torch.device, optional
+    device: torch.device or int, optional
         Device to run the training on. Overrides config if provided.
     metric: Callable, optional
         A function to compute a metric for evaluation.
@@ -89,7 +90,7 @@ class Trainer:
         train_dataset: Dataset,
         val_dataset: Dataset,
         test_dataset: Optional[Dataset] = None,
-        device: Optional[torch.device] = None,
+        device: Optional[Union[torch.device, int]] = None,
         metric: Optional[Callable] = None,
         config: Optional[TrainConfig] = None,
         # Parameters below can override config if supplied explicitly
@@ -121,18 +122,20 @@ class Trainer:
             self.device = device
         else:
             if torch.cuda.is_available():
-                self.device = torch.device(f'cuda:{self.rank}')
+                self.device = self.rank
             else:
                 self.device = torch.device('cpu')
 
         # Prepare the model for multi-GPU training if available
         self.model = model.to(self.device)
-        self._is_distributed = (self.world_size > 1 and self.device.type == 'cuda')
+        self._is_distributed = self.world_size > 1
         if self._is_distributed:
             self.model = DDP(
                 module=self.model,
-                device_ids=[self.device.index],
-                output_device=self.device.index
+                device_ids=[self.device],
+                output_device=self.device,
+                find_unused_parameters=True,
+                gradient_as_bucket_view=True
             )
 
         # Use config if provided, otherwise use defaults
@@ -174,7 +177,7 @@ class Trainer:
         # Initialize data samplers
         train_sampler = DistributedSampler(train_dataset, shuffle=True) if self._is_distributed else None
         val_sampler = DistributedSampler(val_dataset, shuffle=False) if self._is_distributed else None
-        test_sampler = DistributedSampler(test_dataset, shuffle=False) if self._is_distributed else None
+        test_sampler = DistributedSampler(test_dataset, shuffle=False) if (test_dataset is not None and self._is_distributed) else None
 
         # Initialize data loaders
         self.train_loader = DataLoader(
@@ -214,7 +217,11 @@ class Trainer:
         self.best_val_loss = min(self.history['val_loss']) if self.history['val_loss'] else float('inf')
 
         # Initialize the logging directory
-        self.model_name = self.model.__class__.__name__
+        if isinstance(self.model, DDP):
+            self.model_name = self.model.module.__class__.__name__
+        else:
+            self.model_name = self.model.__class__.__name__
+            
         os.makedirs(self.logging_dir, exist_ok=True)
         self.log_dir = os.path.join(self.logging_dir, self.model_name)
         os.makedirs(self.log_dir, exist_ok=True)
@@ -222,8 +229,8 @@ class Trainer:
         # Subfolders
         self.best_models_dir = os.path.join(self.log_dir, 'best')
         self.checkpoints_dir = os.path.join(self.log_dir, 'checkpoints')
-        self.loggings_dir = os.path.join(self.log_dir, 'loggings')
-        self.outputs_dir = os.path.join(self.log_dir, 'outputs')
+        self.loggings_dir = os.path.join(self.log_dir, 'logging')
+        self.outputs_dir = os.path.join(self.log_dir, 'output')
         os.makedirs(self.best_models_dir, exist_ok=True)
         os.makedirs(self.checkpoints_dir, exist_ok=True)
         os.makedirs(self.loggings_dir, exist_ok=True)
@@ -330,8 +337,9 @@ class Trainer:
 
                 # Training phase
                 self.model.train()
-                running_loss = 0.0
-                running_metric = 0.0
+                running_loss_sum = 0.0
+                running_metric_sum = 0.0
+                running_count = 0
 
                 for batch_idx, (X, y) in enumerate(self.train_loader):
                     step = epoch * len(self.train_loader) + batch_idx + 1
@@ -344,15 +352,17 @@ class Trainer:
                     loss = self.criterion(outputs, y)
                     loss.backward()
                     self.optimizer.step()
-
-                    running_loss += loss.item()
+                    bsz = y.size(0)
+                    running_loss_sum += float(loss.item()) * bsz
 
                     if self.metric:
-                        running_metric += self.metric(outputs, y)
+                        running_metric_sum += float(self.metric(outputs, y)) * bsz
 
-                    avg_loss = running_loss / (batch_idx + 1)
-                    avg_metric = running_metric / (batch_idx + 1)
+                    running_count += bsz
 
+                    avg_loss = running_loss_sum / max(running_count, 1)
+                    avg_metric = running_metric_sum / max(running_count, 1)
+                    
                     # Short summary
                     if self.rank == 0:
                         if step % self.logging_steps == 0 or step == total_steps:
@@ -466,8 +476,11 @@ class Trainer:
             for cb in self.callbacks:
                 cb.on_train_end(trainer=self)
         except KeyboardInterrupt:
-            print(f"\nTraining interrupted at epoch {epoch + 1}. Saving current checkpoint.")
-            self.save_checkpoint(epoch)
+            if self.rank == 0:
+                print(f"\nTraining interrupted at epoch {epoch + 1}. Saving current checkpoint.")
+                self.save_checkpoint(epoch)
+                
+            cleanup_ddp()
 
         return self.history, self.model
     

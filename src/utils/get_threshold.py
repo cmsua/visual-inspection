@@ -86,7 +86,7 @@ def calibrate_metrics(
     good_hexaboard: np.ndarray,
     model: nn.Module,
     device: torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
-    json_map: str = './calibrations/damaged_segments.json',
+    json_map_path: str = './calibrations/damaged_segments.json',
 ) -> Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray], ...]:
     """
     Calibrates metrics by calculating SSIM values for pairs of hexaboard segments, distinguishing
@@ -103,7 +103,7 @@ def calibrate_metrics(
         The autoencoder model used for reconstructing the segments.
     device: torch.device
         The device to run the calibration on.
-    json_map: str
+    json_map_path: str
         Path to the JSON file containing indices of the bad segments.
 
     Returns
@@ -120,8 +120,8 @@ def calibrate_metrics(
     model.eval()
 
     # Open the JSON file to get a list of all indices of bad segments
-    if json_map is not None:
-        with open(json_map, 'r') as f:
+    if json_map_path is not None:
+        with open(json_map_path, 'r') as f:
             bad_segments_mapping = json.load(f)['files']
 
     # Create a dictionary to map bad segment indices to their corresponding hexaboard segments

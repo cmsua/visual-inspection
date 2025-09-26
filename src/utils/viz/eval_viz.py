@@ -127,7 +127,6 @@ def plot_pw_comparison(
     )
 
     plt.tight_layout()
-
     if save_fig:
         plt.savefig(save_fig, dpi=300)
     else:
@@ -205,7 +204,6 @@ def plot_ae_comparison(
     )
 
     plt.tight_layout()
-
     if save_fig:
         plt.savefig(save_fig, dpi=300)
     else:

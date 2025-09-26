@@ -10,6 +10,7 @@ from torch.distributed import all_gather, all_gather_object
 from torch.utils.data.distributed import DistributedSampler
 
 from .trainer import Trainer
+from ..utils import cleanup_ddp
 
 
 class AutoencoderTrainer(Trainer):
@@ -27,7 +28,7 @@ class AutoencoderTrainer(Trainer):
         The dataset to use for validation.
     test_dataset: Dataset, optional
         The dataset to use for testing.
-    device: torch.device, optional
+    device: torch.device or int, optional
         Device to run the training on. Overrides config if provided.
     metric: Callable, optional
         A function to compute a metric for evaluation.
@@ -101,8 +102,9 @@ class AutoencoderTrainer(Trainer):
 
                 # Training phase
                 self.model.train()
-                running_loss = 0.0
-                running_metric = 0.0
+                running_loss_sum = 0.0
+                running_metric_sum = 0.0
+                running_count = 0
 
                 for batch_idx, X in enumerate(self.train_loader):
                     step = epoch * len(self.train_loader) + batch_idx + 1
@@ -115,13 +117,15 @@ class AutoencoderTrainer(Trainer):
                     loss.backward()
                     self.optimizer.step()
 
-                    running_loss += loss.item()
+                    running_loss_sum += float(loss.item()) * bsz
 
                     if self.metric:
-                        running_metric += self.metric(outputs, X)
+                        running_metric_sum += float(self.metric(outputs, X)) * bsz
 
-                    avg_loss = running_loss / (batch_idx + 1)
-                    avg_metric = running_metric / (batch_idx + 1)
+                    running_count += bsz
+
+                    avg_loss = running_loss_sum / max(running_count, 1)
+                    avg_metric = running_metric_sum / max(running_count, 1)
 
                     # Short summary
                     if self.rank == 0: 
@@ -232,8 +236,11 @@ class AutoencoderTrainer(Trainer):
             for cb in self.callbacks:
                 cb.on_train_end(trainer=self)
         except KeyboardInterrupt:
-            print(f"\nTraining interrupted at epoch {epoch + 1}. Saving current checkpoint.")
-            self.save_checkpoint(epoch)
+            if self.rank == 0:
+                print(f"\nTraining interrupted at epoch {epoch + 1}. Saving current checkpoint.")
+                self.save_checkpoint(epoch)
+                
+            cleanup_ddp()
 
         return self.history, self.model
     

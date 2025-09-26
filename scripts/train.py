@@ -56,7 +56,7 @@ def main(
     val_dataset = HexaboardDataset(root=val_data_dir, transform=transform)
 
     # Initialize the model
-    device = torch.device(f'cuda:{rank}' if torch.cuda.is_available() else 'cpu')
+    device = rank if torch.cuda.is_available() else torch.device('cpu')
     model = CNNAutoencoder(config=model_config).to(device)
 
     # Initialize the trainer
@@ -98,7 +98,6 @@ if __name__ == '__main__':
     # Multi-GPU processing
     world_size = torch.cuda.device_count()
     if world_size > 1:
-        print(f"Using {world_size} GPUs for training")
         mp.spawn(
             main,
             args=(

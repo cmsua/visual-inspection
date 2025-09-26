@@ -47,6 +47,7 @@ class HexaboardDataset(Dataset):
         skipped_segments_path: Optional[str] = None,
         transform: Optional[Callable] = None
     ):
+        super().__init__()
         self.transform = transform
         self.root = Path(root)
 

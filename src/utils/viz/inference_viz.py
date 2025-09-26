@@ -64,7 +64,6 @@ def plot_threshold_comparison(
             # Build skip mask (bounds-checked)
             H, W = arr.shape
             skip_mask = np.zeros((H, W), dtype=bool)
-
             for (h, v) in skipped_segments:
                 if 0 <= h < H and 0 <= v < W:
                     skip_mask[h, v] = True
@@ -75,7 +74,6 @@ def plot_threshold_comparison(
 
             # Skip annotations for masked cells
             annot = np.full(arr.shape, '', dtype=object)
-
             for i in range(H):
                 for j in range(W):
                     if not skip_mask[i, j] and np.isfinite(plot_arr[i, j]):
@@ -83,7 +81,6 @@ def plot_threshold_comparison(
 
             # Use a copy of the colormap and set the bad color to black
             cmap = plt.cm.get_cmap('coolwarm')
-
             try:
                 cmap = cmap.copy()
             except Exception:
@@ -93,7 +90,6 @@ def plot_threshold_comparison(
 
             # Determine whether to draw the colorbar only on the bottom-right plot (r==1, c==2)
             draw_cbar = (r == 1 and c == 2)
-
             sns.heatmap(
                 data=plot_arr,
                 vmin=0.0,
@@ -108,15 +104,59 @@ def plot_threshold_comparison(
                 ax=ax
             )
             ax.set_title(t)
-            ax.set_xlabel('V_seg')
-            ax.set_ylabel('H_seg')
+            ax.set_xlabel("V_seg")
+            ax.set_ylabel("H_seg")
 
             # Set tick labels starting from 1 instead of 0
             ax.set_xticklabels([str(x) for x in np.arange(1, W + 1)])
             ax.set_yticklabels([str(y) for y in np.arange(1, H + 1)], rotation=0)
 
     fig.suptitle("Threshold Comparison")
+    if save_fig:
+        plt.savefig(save_fig, dpi=300)
+    else:
+        plt.show()
 
+
+def plot_confusion_matrices(
+    ae_cm: np.ndarray,
+    pw_cm: np.ndarray,
+    double_cm: np.ndarray,
+    title_prefix: str = '',
+    save_fig: Optional[str] = None
+) -> None:
+    mats = [ae_cm, pw_cm, double_cm]
+    names = ["Autoencoder", "Pixel-wise", "Both"]
+
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
+    vmin = 0
+    vmax = max(int(m.max()) for m in mats)
+    for ax, mat, name in zip(axes, mats, names):
+        # Convert to int for display
+        display_mat = np.array(mat, dtype=int)
+        sns.heatmap(
+            display_mat,
+            vmin=vmin,
+            vmax=vmax,
+            cmap='coolwarm',
+            annot=True,
+            fmt='d',
+            linewidths=0.5,
+            linecolor='gray',
+            cbar=False,
+            ax=ax
+        )
+
+        ax.set_xlabel("Predicted")
+        ax.set_ylabel("Actual")
+        ax.set_xticklabels(["Good", "Bad"])
+        ax.set_yticklabels(["Good", "Bad"], rotation=0)
+        ax.set_title(name)
+
+    if title_prefix:
+        fig.suptitle(title_prefix)
+
+    fig.tight_layout()
     if save_fig:
         plt.savefig(save_fig, dpi=300)
     else:

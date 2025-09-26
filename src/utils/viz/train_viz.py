@@ -62,7 +62,6 @@ def plot_history(history: Dict[str, List[float]], save_fig: Optional[str] = None
     plt.grid(True)
 
     plt.tight_layout()
-
     if save_fig:
         plt.savefig(save_fig, dpi=300)
     else:

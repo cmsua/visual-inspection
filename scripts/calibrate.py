@@ -1,4 +1,5 @@
 import argparse
+from typing import List
 
 import numpy as np
 
@@ -31,29 +32,33 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
-    # Parse command-line arguments
-    args = parse_args()
-
-    # Reproducibility settings
-    set_seed(42)
-    device = torch.device(args.device)
+def main(
+    baseline_hexaboard_path: str,
+    good_hexaboard_path: str,
+    json_map_path: str,
+    skipped_segments_path: str,
+    latent_dim: int = 32,
+    init_filters: int = 128,
+    layers: List[int] = [2, 2, 2],
+    best_model_path: str = './logs/CNNAutoencoder/best/run_01.pt',
+    device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
+):
+    device = torch.device(device)
 
     # Load the hexaboard data
-    baseline_hexaboard = load_hexaboard(args.baseline_hexaboard_path)
-    good_hexaboard = load_hexaboard(args.good_hexaboard_path)
-
+    baseline_hexaboard = load_hexaboard(baseline_hexaboard_path)
+    good_hexaboard = load_hexaboard(good_hexaboard_path)
     _, _, height, width, _ = baseline_hexaboard.shape
     
     # Load the model
     model = CNNAutoencoder(
         height=height,
         width=width,
-        latent_dim=args.latent_dim,
-        init_filters=args.init_filters,
-        layers=args.layers
+        latent_dim=latent_dim,
+        init_filters=init_filters,
+        layers=layers
     ).to(device)
-    model.load_state_dict(torch.load(args.best_model_path, map_location=device))
+    model.load_state_dict(torch.load(best_model_path, map_location=device))
     model.eval()
 
     # Calibrate metrics and get SSIM thresholds
@@ -62,17 +67,18 @@ def main():
         good_hexaboard=good_hexaboard,
         model=model,
         device=device,
-        json_map=args.json_map_path,
+        json_map_path=json_map_path,
     )
 
     # Load the skipped segments
-    skipped_segments = load_skipped_segments(args.skipped_segments_path)
+    skipped_segments = load_skipped_segments(skipped_segments_path)
 
     # Visualize the threshold comparison for both methods
     plot_threshold_comparison(
         pw_metrics=pw_metrics,
         ae_metrics=ae_metrics,
-        skipped_segments=skipped_segments
+        skipped_segments=skipped_segments,
+        save_fig='./logs/CNNAutoencoder/output/threshold_comparison.png'
     )
 
     # Save the results to .npy files
@@ -85,4 +91,21 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # Parse command-line arguments
+    args = parse_args()
+
+    # Reproducibility settings
+    set_seed(42)
+
+    # Run the calibration
+    main(
+        baseline_hexaboard_path=args.baseline_hexaboard_path,
+        good_hexaboard_path=args.good_hexaboard_path,
+        json_map_path=args.json_map_path,
+        skipped_segments_path=args.skipped_segments_path,
+        latent_dim=args.latent_dim,
+        init_filters=args.init_filters,
+        layers=args.layers,
+        best_model_path=args.best_model_path,
+        device=args.device
+    )
