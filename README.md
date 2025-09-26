@@ -57,12 +57,12 @@ This project implements an automated visual inspection system that combines:
 
 The system uses a compact convolutional autoencoder (`CNNAutoencoder`) with the following key features:
 
-- **Encoder**: Stacked convolutional stages (no residual blocks) that progressively reduce spatial resolution to a compact bottleneck
-- **Bottleneck**: Compressed latent representation (default: 32 dimensions)
+- **Encoder**: Stacked convolutional stages that progressively reduce spatial resolution to a compact bottleneck
+- **Bottleneck**: Compressed latent representation
 - **Decoder**: Symmetric upsampling path using `ConvTranspose2d` layers to reconstruct the original image
 - **Loss Function**: `BCEWithLogitsLoss` for pixel-wise reconstruction
 
-The model is trained to reproduce normal hexaboard segments; during inference, segments with poor reconstruction quality (low SSIM or large AE reconstruction error) are flagged as potential defects.
+The model is trained to reproduce normal hexaboard segments; during inference, segments with poor reconstruction quality (low SSIM) are flagged as potential defects.
 
 ### Train the Model
 
@@ -86,6 +86,9 @@ python -m scripts.train \
 
 Model and optimization specifics (batch size, optimizer, scheduler, loss, number of epochs, early stopping, etc.) are controlled by the YAML file referenced by `--config-path`.
 
+![Autoencoder training run snapshot](logs/CNNAutoencoder/output/run_01.png)
+*Model training and validation loss*
+
 ### Evaluate the Model
 
 To evaluate the trained model and visualize reconstructions (uses a YAML config to reconstruct the model architecture):
@@ -106,6 +109,69 @@ python -m scripts.evaluate \
 - `--bad-hexaboard-dir`: Folder containing a bad hexaboard (default: `./data/bad_example`)
 - `--display-segment-idx`: Segment index to display in the reconstruction plot (default: `83`)
 
+![Autoencoder evaluation performance](logs/CNNAutoencoder/output/ae_performance.png)
+*The model reconstructed poorly on bad segments, so SSIM is lower.*
+
+## Calibrate the Thresholds
+
+Use `scripts.calibrate` to compute per-segment SSIM thresholds for pixel-wise and autoencoder methods.
+
+```bash
+python -m scripts.calibrate \
+    -b ./data/train/aligned_images1.npy \
+    -g ./data/train/aligned_images2.npy \
+    -j ./calibrations/damaged_segments.json \
+    -s ./calibrations/skipped_segments.json \
+    --latent-dim 32 \
+    --init-filters 128 \
+    --layers 2 2 2 \
+    -w ./logs/CNNAutoencoder/best/run_01.pt \
+    --device cuda
+```
+
+**Key Calibration Arguments:**
+- `-b`: Baseline hexaboard `.npy` (default: `./data/train/aligned_images1.npy`)
+- `-g`: Good hexaboard `.npy` (default: `./data/train/aligned_images2.npy`)
+- `-j`: JSON map of damaged segments (default: `./calibrations/damaged_segments.json`)
+- `-s`: JSON file listing segments to skip (default: `./calibrations/skipped_segments.json`)
+- `--latent-dim`, `--init-filters`, `--layers`, `-w`, `--device`: Model arguments
+
+![Threshold comparison for pixel-wise and autoencoder methods](logs/CNNAutoencoder/output/threshold_comparison.png)
+*Threshold comparison across segments (black cells are skipped segments)*
+
+## Inference Analysis
+
+Run `scripts.analyze` to compute aggregated predictions on the full good and bad datasets and produce confusion matrices.
+
+```bash
+python -m scripts.analyze \
+    --train-data-dir ./data/train \
+    --val-data-dir ./data/val \
+    --test-data-dir ./data/test \
+    --bad-data-dir ./data/bad \
+    -j ./calibrations/damaged_segments.json \
+    -s ./calibrations/skipped_segments.json \
+    --ae-threshold-path ./calibrations/ae_threshold.npy \
+    --pw-threshold-path ./calibrations/pw_threshold.npy \
+    --latent-dim 32 \
+    --init-filters 128 \
+    --layers 2 2 2 \
+    -w ./logs/CNNAutoencoder/best/run_01.pt \
+    --device cuda
+```
+
+**Key Analysis Arguments:**
+- `--train-data-dir`, `--val-data-dir`, `--test-data-dir`: Folders with good hexaboards
+- `--bad-data-dir`: Folder with bad hexaboards
+- `-j`: JSON map of damaged segments (default: `./calibrations/damaged_segments.json`)
+- `-s`: JSON file listing segments to skip (default: `./calibrations/skipped_segments.json`)
+- `--ae-threshold-path`: Path to autoencoder per-segment threshold `.npy` (default: `./calibrations/ae_threshold.npy`)
+- `--pw-threshold-path`: Path to pixel-wise per-segment threshold `.npy` (default: `./calibrations/pw_threshold.npy`)
+- `--latent-dim`, `--init-filters`, `--layers`, `-w`, `--device`: Model arguments
+
+![Aggregated confusion matrices for AE, PW and their union](logs/CNNAutoencoder/output/confusion_matrices.png)
+*Aggregated confusion matrices over all analyzed boards (Good vs Bad classification per segment)*
+
 ## Run the Inspection
 
 ### Basic usage
@@ -113,16 +179,16 @@ python -m scripts.evaluate \
 To run the inspection pipeline (pixel-wise + autoencoder) on a new hexaboard:
 
 ```bash
-python -m scripts.inspection \
+python -m scripts.inspect \
     -b ./data/baseline_hexaboard.npy \
     -n ./data/test_hexaboard.npy \
+    -s ./calibrations/skipped_segments.json \
     --ae-threshold-path ./calibrations/ae_threshold.npy \
     --pw-threshold-path ./calibrations/pw_threshold.npy \
-    --skipped-segments-path ./calibrations/skipped_segments.json \
-    -w ./logs/CNNAutoencoder/best/run_01.pt \
     --latent-dim 32 \
     --init-filters 128 \
     --layers 2 2 2 \
+    -w ./logs/CNNAutoencoder/best/run_01.pt \
     --device cuda
 ```
 
@@ -133,13 +199,13 @@ python -m scripts.inspection \
 - `-n, --new-hexaboard-path`: Path to new hexaboard images to inspect (.npy file)
 
 **Optional Arguments:**
-- `-s, --skipped-segments-path`: JSON file listing segments to skip (default: `./calibrations/skipped_segments.json`)
+- `-s`: JSON file listing segments to skip (default: `./calibrations/skipped_segments.json`)
 - `--ae-threshold-path`: Path to autoencoder per-segment threshold `.npy` (default: `./calibrations/ae_threshold.npy`)
 - `--pw-threshold-path`: Path to pixel-wise per-segment threshold `.npy` (default: `./calibrations/pw_threshold.npy`)
-- `-w, --best-model-path`: Path to trained model weights (default: `./logs/CNNAutoencoder/best/run_01.pt`)
 - `--latent-dim`: Autoencoder latent dimension (default: `32`)
 - `--init-filters`: Initial filter count (default: `128`)
 - `--layers`: CNN layer configuration (default: `[2, 2, 2]`)
+- `-w`: Path to trained model weights (default: `./logs/CNNAutoencoder/best/run_01.pt`)
 - `--device`: Computation device (default: auto-detect CUDA/CPU)
 
 ### Expected Input Format
@@ -191,13 +257,12 @@ visual-inspection/
 │   ├── configs/           # Configuration modules
 │   ├── engine/            # Training engine
 │   ├── inferences/        # Inference implementations
-│   ├── inspection/        # Main inspection module
 │   ├── models/            # Neural network models
 │   └── utils/             # Utility functions and datasets
-├── scripts/               # Training and evaluation scripts
+├── scripts/               # Training, calibration, and inference
 ├── tests/                 # Unit tests
 ├── logs/                  # Model checkpoints and logs
 ├── data/                  # Data directory (add your .npy files here)
-└── notebooks/             # Jupyter notebooks for analysis
+├── notebooks/             # Jupyter notebooks for analysis
 └── calibrations/          # JSON and .npy files for thresholds calibration
 ```
