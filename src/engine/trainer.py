@@ -122,7 +122,7 @@ class Trainer:
             self.device = device
         else:
             if torch.cuda.is_available():
-                self.device = self.rank
+                self.device = torch.device(f'cuda:{self.rank}')
             else:
                 self.device = torch.device('cpu')
 
@@ -258,6 +258,13 @@ class Trainer:
         ]
 
         return max(indices, default=0) + 1
+    
+    def _set_logging_paths(self, run_name: str):
+        self.run_name = run_name
+        self._log_header_written = True
+        self.best_model_path = os.path.join(self.best_models_dir, f"{self.run_name}.pt") if self.save_best else None
+        self.checkpoint_path = os.path.join(self.checkpoints_dir, f"{self.run_name}.pt") if self.save_ckpt else None
+        self.logging_path = os.path.join(self.loggings_dir, f"{self.run_name}.csv")
 
     def save_checkpoint(self, epoch: int):
         model_state = self.model.module.state_dict() if self._is_distributed else self.model.state_dict()
@@ -274,11 +281,7 @@ class Trainer:
 
     def load_checkpoint(self, checkpoint_path: str):
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
-        self.run_name = checkpoint['run_name']
-        self._log_header_written = True
-        self.best_model_path = os.path.join(self.best_models_dir, f"{self.run_name}.pt") if self.save_best else None
-        self.checkpoint_path = os.path.join(self.checkpoints_dir, f"{self.run_name}.pt") if self.save_ckpt else None
-        self.logging_path = os.path.join(self.loggings_dir, f"{self.run_name}.csv")
+        self._set_logging_paths(checkpoint['run_name'])
         target = self.model.module if self._is_distributed else self.model
         target.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -289,6 +292,8 @@ class Trainer:
         self.history = checkpoint['history']
     
     def load_best_model(self, best_model_path: str):
+        run_name = os.path.splitext(os.path.basename(best_model_path))[0]
+        self._set_logging_paths(run_name)
         target = self.model.module if self._is_distributed else self.model
         target.load_state_dict(torch.load(best_model_path, map_location=self.device))
 
@@ -574,9 +579,11 @@ class Trainer:
                 if isinstance(plot, list):
                     for i, viz in enumerate(plot):
                         output_path = os.path.join(self.outputs_dir, f"{self.run_name}_viz_{i + 1}.png")
+                        output_path = output_path if self.save_fig else None
                         viz(y_true, y_pred, save_fig=output_path)
                 else:
                     output_path = os.path.join(self.outputs_dir, f"{self.run_name}.png")
+                    output_path = output_path if self.save_fig else None
                     plot(y_true, y_pred, save_fig=output_path)
 
         return test_loss, test_metric, y_true, y_pred

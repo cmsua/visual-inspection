@@ -45,6 +45,7 @@ def main(
 
     # Initialize multi-GPU processing
     setup_ddp(rank, world_size)
+    device = torch.device(f'cuda:{rank}' if torch.cuda.is_available() else 'cpu')
 
     # Convert np.ndarray to torch.Tensor: (H, W, C) -> (C, H, W)
     transform = transforms.Compose([
@@ -56,7 +57,6 @@ def main(
     val_dataset = HexaboardDataset(root=val_data_dir, transform=transform)
 
     # Initialize the model
-    device = rank if torch.cuda.is_available() else torch.device('cpu')
     model = CNNAutoencoder(config=model_config).to(device)
 
     # Initialize the trainer

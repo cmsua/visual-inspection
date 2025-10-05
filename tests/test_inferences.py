@@ -38,15 +38,15 @@ def baseline_hexaboard() -> np.ndarray:
 @pytest.fixture
 def temp_hexaboard() -> np.ndarray:
     # Create a temporary 5D array with random data
-    temp_data = np.random.rand(13, 9, 100, 100, 3) * 255  # Smaller size for faster tests
+    temp_data = np.random.rand(13, 9, 100, 100, 3)  # smaller size for faster tests
 
-    return temp_data.astype(np.uint8)
+    return temp_data
 
 
 def test_identical_pixelwise_inference(temp_hexaboard: np.ndarray) -> None:
     H_seg, V_seg, _, _, _ = temp_hexaboard.shape
     threshold = np.full((H_seg, V_seg), 0.9, dtype=float)  # 2D threshold array
-    flagged_segments = pixelwise_inference(temp_hexaboard, temp_hexaboard, threshold=threshold)
+    flagged_segments = pixelwise_inference(temp_hexaboard, temp_hexaboard, threshold)
 
     assert len(flagged_segments) == 0, "No segments should be flagged for identical images."
 
@@ -54,12 +54,12 @@ def test_identical_pixelwise_inference(temp_hexaboard: np.ndarray) -> None:
 def test_one_diff_pixelwise_inference(temp_hexaboard: np.ndarray) -> None:
     # Create a modified version
     new_hexaboard = temp_hexaboard.copy()
-    new_hexaboard[0, 0, :, :, :] = (new_hexaboard[0, 0, :, :, :] * 0.5).astype(np.uint8)  # significant change
+    new_hexaboard[0, 0, :, :, :] = (new_hexaboard[0, 0, :, :, :] * 0.5)
 
     H_seg, V_seg, _, _, _ = temp_hexaboard.shape
-    threshold = np.full((H_seg, V_seg), 0.9, dtype=float)
+    threshold = np.full((H_seg, V_seg), 0.1, dtype=float)
 
-    flagged_segments = pixelwise_inference(temp_hexaboard, new_hexaboard, threshold=threshold)
+    flagged_segments = pixelwise_inference(temp_hexaboard, new_hexaboard, threshold, skipped_segments=set())
     assert len(flagged_segments) >= 1, "At least one segment should be flagged for different images."
     assert (0, 0) in flagged_segments, "The modified segment should be flagged."
 
@@ -80,7 +80,7 @@ def test_identical_autoencoder_inference(baseline_hexaboard: np.ndarray, config:
         model.load_state_dict(torch.load(ckpt_path, map_location=device))
         model.eval()
 
-        threshold = np.zeros((H_seg, V_seg), dtype=float)  # 2D threshold array
+        threshold = np.full((H_seg, V_seg), 1.0, dtype=float)  # 2D threshold array
 
         flagged_segments = autoencoder_inference(
             hexaboard=baseline_hexaboard,

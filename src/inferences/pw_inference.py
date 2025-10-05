@@ -35,7 +35,6 @@ def pixelwise_inference(
 
     H_seg, V_seg, _, _, _ = baseline_hexaboard.shape
     flagged_segments = []
-
     if skipped_segments is None:
         skipped_segments = {
             (0, 0), (0, 1), (0, 7), (0, 8),
@@ -58,9 +57,8 @@ def pixelwise_inference(
 
             baseline_segment = baseline_hexaboard[h, v]
             new_segment = new_hexaboard[h, v]
-            ssim_val = ssim(baseline_segment, new_segment, data_range=1.0, channel_axis=2)
-
-            if ssim_val < threshold[h, v]:
+            ssim_val = 1 - ssim(baseline_segment, new_segment, data_range=1.0, channel_axis=2)
+            if ssim_val >= threshold[h, v]:
                 flagged_segments.append((h, v))
 
     return flagged_segments

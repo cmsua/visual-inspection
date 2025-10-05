@@ -73,7 +73,7 @@ To train the CNN autoencoder with a config file:
 ```bash
 python -m scripts.train \
     --config-path ./configs/train_CNNAutoencoder.yaml \
-    --checkpoint-path ./logs/CNNAutoencoder/checkpoint.pt \
+    --checkpoint-path ./logs/CNNAutoencoder/checkpoints/run_01.pt \
     --train-data-dir ./data/train \
     --val-data-dir ./data/val
 ```
@@ -118,8 +118,9 @@ Use `scripts.calibrate` to compute per-segment SSIM thresholds for pixel-wise an
 
 ```bash
 python -m scripts.calibrate \
-    -b ./data/train/aligned_images1.npy \
-    -g ./data/train/aligned_images2.npy \
+    --train-data-dir ./data/train \
+    --val-data-dir ./data/val \
+    --test-data-dir ./data/test \
     -j ./calibrations/damaged_segments.json \
     -s ./calibrations/skipped_segments.json \
     --latent-dim 32 \
@@ -130,8 +131,7 @@ python -m scripts.calibrate \
 ```
 
 **Key Calibration Arguments:**
-- `-b`: Baseline hexaboard `.npy` (default: `./data/train/aligned_images1.npy`)
-- `-g`: Good hexaboard `.npy` (default: `./data/train/aligned_images2.npy`)
+- `--train-data-dir`, `--val-data-dir`, `--test-data-dir`: Folders with good hexaboards
 - `-j`: JSON map of damaged segments (default: `./calibrations/damaged_segments.json`)
 - `-s`: JSON file listing segments to skip (default: `./calibrations/skipped_segments.json`)
 - `--latent-dim`, `--init-filters`, `--layers`, `-w`, `--device`: Model arguments
@@ -220,26 +220,6 @@ Where:
 - `V_seg`: Number of vertical segments (`9`)
 - `height, width`: Pixel dimensions of each segment `(1016, 1640)`
 - `num_channels`: Color channels (`3`)
-
-### Output
-
-The inspection system outputs four categories of flagged segments:
-
-1. **Double flagged**: Segments flagged by both autoencoder and pixel-wise methods
-2. **Autoencoder flagged**: Segments flagged only by the ML model
-3. **Pixel-wise flagged**: Segments flagged only by traditional comparison
-4. **All flagged**: Union of all flagged segments
-
-Each flagged segment is identified by its `(board_index, h_segment, v_segment)` coordinates.
-
-### Example Output
-
-```
-Double flagged segments: [(0, 3, 2), (0, 7, 5)]
-Autoencoder flagged segments: [(0, 1, 8), (0, 9, 3)]
-Pixel-wise flagged segments: [(0, 5, 1)]
-All flagged segments: [(0, 1, 8), (0, 3, 2), (0, 5, 1), (0, 7, 5), (0, 9, 3)]
-```
 
 ## Testing
 

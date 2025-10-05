@@ -1,9 +1,9 @@
 from typing import List, Set, Tuple
 
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 
@@ -48,7 +48,6 @@ def autoencoder_inference(
     # Create dataset
     hexaboard = torch.tensor(hexaboard).permute(0, 1, 4, 2, 3)
     flagged_segments = []
-
     if skipped_segments is None:
         skipped_segments = {
             (0, 0), (0, 1), (0, 7), (0, 8),
@@ -71,11 +70,10 @@ def autoencoder_inference(
             segment = hexaboard[h, v].unsqueeze(0)  # (1, num_channels, height, width)
             segment = segment.to(device, non_blocking=device.type == 'cuda')
             recons = torch.sigmoid(model(segment))
-            pred = recons[0].permute(1, 2, 0).cpu().numpy()  # (height, width, num_channels)
-            true = segment[0].permute(1, 2, 0).cpu().numpy()
-            ssim_val = ssim(pred, true, data_range=1.0, channel_axis=2)
-
-            if ssim_val < threshold[h, v]:
+            pred = recons[0].permute(1, 2, 0)
+            true = segment[0].permute(1, 2, 0)
+            mae_val = F.l1_loss(pred, true).item()
+            if mae_val >= threshold[h, v]:
                 flagged_segments.append((h, v))
 
     return flagged_segments

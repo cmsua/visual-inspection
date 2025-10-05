@@ -153,9 +153,13 @@ def plot_ae_comparison(
     seg_bad = np.transpose(seg_bad, (1, 2, 0))
     recon_seg_bad = np.transpose(recon_seg_bad, (1, 2, 0))
 
-    # Compute structural similarity index (SSIM)
-    m1, diff1 = ssim(seg_good, recon_seg_good, data_range=1.0, channel_axis=2, full=True)
-    m2, diff2 = ssim(seg_bad, recon_seg_bad, data_range=1.0, channel_axis=2, full=True)
+    # # Compute structural similarity index (SSIM)
+    # m1, diff1 = ssim(seg_good, recon_seg_good, data_range=1.0, channel_axis=2, full=True)
+    # m2, diff2 = ssim(seg_bad, recon_seg_bad, data_range=1.0, channel_axis=2, full=True)
+    m1 = np.subtract(seg_good, recon_seg_good).mean()
+    m2 = np.subtract(seg_bad, recon_seg_bad).mean()
+    diff1 = 1 - np.abs(seg_good - recon_seg_good)
+    diff2 = 1 - np.abs(seg_bad - recon_seg_bad)
 
     _, axes = plt.subplots(2, 3, figsize=(10, 5), dpi=300)
 
@@ -183,7 +187,7 @@ def plot_ae_comparison(
     axes[0, 2].axis('off')
     axes[0, 2].text(
         0.05, 0.95,
-        f"SSIM: {m1:.3f}",
+        f"MAE: {m1:.3f}",
         transform=axes[0, 2].transAxes,
         color='black',
         fontsize=12,
@@ -195,7 +199,7 @@ def plot_ae_comparison(
     axes[1, 2].axis('off')
     axes[1, 2].text(
         0.05, 0.95,
-        f"SSIM: {m2:.3f}",
+        f"MAE: {m2:.3f}",
         transform=axes[1, 2].transAxes,
         color='black',
         fontsize=12,

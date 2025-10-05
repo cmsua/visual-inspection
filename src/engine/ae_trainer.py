@@ -116,7 +116,7 @@ class AutoencoderTrainer(Trainer):
                     loss = self.criterion(outputs, X)
                     loss.backward()
                     self.optimizer.step()
-
+                    bsz = X.size(0)
                     running_loss_sum += float(loss.item()) * bsz
 
                     if self.metric:
@@ -318,9 +318,11 @@ class AutoencoderTrainer(Trainer):
                 if isinstance(plot, list):
                     for i, viz in enumerate(plot):
                         output_path = os.path.join(self.outputs_dir, f"{self.run_name}_viz_{i + 1}.png")
+                        output_path = output_path if self.save_fig else None
                         viz(y_true, y_pred, save_fig=output_path)
                 else:
                     output_path = os.path.join(self.outputs_dir, f"{self.run_name}.png")
+                    output_path = output_path if self.save_fig else None
                     plot(y_true, y_pred, save_fig=output_path)
 
         return test_loss, y_true, y_pred

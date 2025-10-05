@@ -1,3 +1,4 @@
+import os
 import argparse
 from typing import List
 
@@ -14,9 +15,10 @@ from src.utils.viz import plot_threshold_comparison
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Calibrate SSIM threshold for each segment.")
 
-    # Data I/O arguments
-    parser.add_argument('-b', '--baseline-hexaboard-path', type=str, default='./data/train/aligned_images1.npy', help="Path to the baseline hexaboard")
-    parser.add_argument('-g', '--good-hexaboard-path', type=str, default='./data/train/aligned_images2.npy', help="Path to the good hexaboard")
+    # Data loading arguments
+    parser.add_argument('--train-data-dir', type=str, default='./data/train', help="Train data folder")
+    parser.add_argument('--val-data-dir', type=str, default='./data/val', help="Validation data folder")
+    parser.add_argument('--test-data-dir', type=str, default='./data/test', help="Test data folder")
     parser.add_argument('-j', '--json-map-path', type=str, default='./calibrations/damaged_segments.json', help="Path to the JSON map file")
     parser.add_argument('-s', '--skipped-segments-path', type=str, default='./calibrations/skipped_segments.json', help="Path to the JSON file containing the list of segments to skip")
 
@@ -32,11 +34,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+@torch.no_grad()
 def main(
-    baseline_hexaboard_path: str,
-    good_hexaboard_path: str,
-    json_map_path: str,
-    skipped_segments_path: str,
+    train_data_dir: str = './data/train',
+    val_data_dir: str = './data/val',
+    test_data_dir: str = './data/test',
+    json_map_path: str = './calibrations/damaged_segments.json',
+    skipped_segments_path: str = './calibrations/skipped_segments.json',
     latent_dim: int = 32,
     init_filters: int = 128,
     layers: List[int] = [2, 2, 2],
@@ -45,9 +49,8 @@ def main(
 ):
     device = torch.device(device)
 
-    # Load the hexaboard data
-    baseline_hexaboard = load_hexaboard(baseline_hexaboard_path)
-    good_hexaboard = load_hexaboard(good_hexaboard_path)
+    # Load the baseline hexaboard to get image dimensions
+    baseline_hexaboard = load_hexaboard(os.path.join(train_data_dir, 'aligned_images1.npy'))
     _, _, height, width, _ = baseline_hexaboard.shape
     
     # Load the model
@@ -61,10 +64,17 @@ def main(
     model.load_state_dict(torch.load(best_model_path, map_location=device))
     model.eval()
 
-    # Calibrate metrics and get SSIM thresholds
+    # Build a list of full paths for all good hexaboards
+    good_hexaboard_paths = []
+    for data_dir in [train_data_dir, val_data_dir, test_data_dir]:
+        for filename in os.listdir(data_dir):
+            if filename != 'aligned_images1.npy':
+                good_hexaboard_paths.append(os.path.join(data_dir, filename))
+
+    # Calibrate metrics and get thresholds
     pw_metrics, ae_metrics = calibrate_metrics(
         baseline_hexaboard=baseline_hexaboard,
-        good_hexaboard=good_hexaboard,
+        good_hexaboard_paths=good_hexaboard_paths,
         model=model,
         device=device,
         json_map_path=json_map_path,
@@ -86,8 +96,8 @@ def main(
     np.save('./calibrations/pw_bad_ssims.npy', pw_metrics[1])
     np.save('./calibrations/pw_good_ssims.npy', pw_metrics[2])
     np.save('./calibrations/ae_threshold.npy', ae_metrics[0])
-    np.save('./calibrations/ae_bad_ssims.npy', ae_metrics[1])
-    np.save('./calibrations/ae_good_ssims.npy', ae_metrics[2])
+    np.save('./calibrations/ae_bad_maes.npy', ae_metrics[1])
+    np.save('./calibrations/ae_good_maes.npy', ae_metrics[2])
 
 
 if __name__ == '__main__':
@@ -99,8 +109,9 @@ if __name__ == '__main__':
 
     # Run the calibration
     main(
-        baseline_hexaboard_path=args.baseline_hexaboard_path,
-        good_hexaboard_path=args.good_hexaboard_path,
+        train_data_dir=args.train_data_dir,
+        val_data_dir=args.val_data_dir,
+        test_data_dir=args.test_data_dir,
         json_map_path=args.json_map_path,
         skipped_segments_path=args.skipped_segments_path,
         latent_dim=args.latent_dim,

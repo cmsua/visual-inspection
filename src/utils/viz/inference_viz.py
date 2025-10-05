@@ -34,7 +34,7 @@ def plot_threshold_comparison(
     # Row titles
     row_titles = [
         ["PW Good SSIMs", "PW Bad SSIMs", "PW Optimal Threshold"],
-        ["AE Good SSIMs", "AE Bad SSIMs", "AE Optimal Threshold"]
+        ["AE Good MAEs", "AE Bad MAEs", "AE Optimal Threshold"]
     ]
     arrays_row0 = [pw_good, pw_bad, pw_opt]
     arrays_row1 = [ae_good, ae_bad, ae_opt]
@@ -92,8 +92,6 @@ def plot_threshold_comparison(
             draw_cbar = (r == 1 and c == 2)
             sns.heatmap(
                 data=plot_arr,
-                vmin=0.0,
-                vmax=1.0,
                 cmap=cmap,
                 annot=annot,
                 fmt='',
@@ -122,7 +120,7 @@ def plot_confusion_matrices(
     ae_cm: np.ndarray,
     pw_cm: np.ndarray,
     double_cm: np.ndarray,
-    title_prefix: str = '',
+    title: str = '',
     save_fig: Optional[str] = None
 ) -> None:
     mats = [ae_cm, pw_cm, double_cm]
@@ -138,11 +136,10 @@ def plot_confusion_matrices(
             display_mat,
             vmin=vmin,
             vmax=vmax,
-            cmap='coolwarm',
+            cmap='flare',
             annot=True,
             fmt='d',
-            linewidths=0.5,
-            linecolor='gray',
+            annot_kws={'fontsize': 16},
             cbar=False,
             ax=ax
         )
@@ -153,9 +150,7 @@ def plot_confusion_matrices(
         ax.set_yticklabels(["Good", "Bad"], rotation=0)
         ax.set_title(name)
 
-    if title_prefix:
-        fig.suptitle(title_prefix)
-
+    fig.suptitle(title)
     fig.tight_layout()
     if save_fig:
         plt.savefig(save_fig, dpi=300)

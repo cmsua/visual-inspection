@@ -59,7 +59,7 @@ def main(
 ):
     device = torch.device(device)
 
-    # Load one hexaboard to get image dimensions
+    # Load the baseline hexaboard to get image dimensions
     baseline_hexaboard = load_hexaboard(os.path.join(train_data_dir, 'aligned_images1.npy'))
     H_seg, V_seg, height, width, _ = baseline_hexaboard.shape
 
@@ -81,37 +81,15 @@ def main(
     # Load the skipped segments
     skipped_segments = load_skipped_segments(skipped_segments_path)
 
-    # Build a list of full paths for all good hexaboards
+    # Build a list of paths for all good hexaboards
     good_hexaboard_paths = []
     for data_dir in [train_data_dir, val_data_dir, test_data_dir]:
         for filename in os.listdir(data_dir):
-            good_hexaboard_paths.append(os.path.join(data_dir, filename))
+            if filename != 'aligned_images1.npy':
+                good_hexaboard_paths.append(os.path.join(data_dir, filename))
 
-    # Analyze the good hexaboards
-    ae_pred_good = []
-    pw_pred_good = []
-    double_pred_good = []
-    for hexaboard_path in good_hexaboard_paths:
-        hexaboard = load_hexaboard(hexaboard_path)
-
-        ae_indices = autoencoder_inference(
-            hexaboard=hexaboard,
-            threshold=ae_threshold,
-            model=model,
-            device=device,
-            skipped_segments=skipped_segments
-        )
-        pw_indices = pixelwise_inference(
-            baseline_hexaboard=baseline_hexaboard,
-            new_hexaboard=hexaboard,
-            threshold=pw_threshold,
-            skipped_segments=skipped_segments
-        )
-        double_flagged_indices = sorted(list(set(ae_indices) & set(pw_indices)))
-
-        ae_pred_good.append(ae_indices)
-        pw_pred_good.append(pw_indices)
-        double_pred_good.append(double_flagged_indices)
+    # List of paths for all bad hexaboards
+    bad_hexaboard_paths = sorted(os.listdir(bad_data_dir))
 
     # Build a mapping from bad filename basename -> list of true bad coords
     true_bad_map = {}
@@ -126,7 +104,36 @@ def main(
 
         true_bad_map[base] = coords
 
-    bad_hexaboard_paths = sorted(os.listdir(bad_data_dir))
+    # Derive extended skipped segments
+    bad_coords = {coord for coords in true_bad_map.values() for coord in coords}
+    all_coords = {(h, v) for h in range(H_seg) for v in range(V_seg)}
+    extended_skipped_segments = set(skipped_segments) | (all_coords - bad_coords)
+
+    # Analyze the good hexaboards
+    ae_pred_good = []
+    pw_pred_good = []
+    double_pred_good = []
+    for hexaboard_path in good_hexaboard_paths:
+        hexaboard = load_hexaboard(hexaboard_path)
+
+        ae_indices = autoencoder_inference(
+            hexaboard=hexaboard,
+            threshold=ae_threshold,
+            model=model,
+            device=device,
+            skipped_segments=extended_skipped_segments
+        )
+        pw_indices = pixelwise_inference(
+            baseline_hexaboard=baseline_hexaboard,
+            new_hexaboard=hexaboard,
+            threshold=pw_threshold,
+            skipped_segments=extended_skipped_segments
+        )
+        double_flagged_indices = sorted(list(set(ae_indices) & set(pw_indices)))
+
+        ae_pred_good.append(ae_indices)
+        pw_pred_good.append(pw_indices)
+        double_pred_good.append(double_flagged_indices)
 
     # Analyze the bad hexaboards
     ae_pred_bad = []
@@ -141,13 +148,13 @@ def main(
             threshold=ae_threshold,
             model=model,
             device=device,
-            skipped_segments=skipped_segments
+            skipped_segments=extended_skipped_segments
         )
         pw_indices = pixelwise_inference(
             baseline_hexaboard=baseline_hexaboard,
             new_hexaboard=hexaboard,
             threshold=pw_threshold,
-            skipped_segments=skipped_segments
+            skipped_segments=extended_skipped_segments
         )
         double_flagged_indices = sorted(list(set(ae_indices) & set(pw_indices)))
 
@@ -156,7 +163,7 @@ def main(
         double_pred_bad.append(double_flagged_indices)
         
     # Total segments per board (exclude skipped segments)
-    total_segments_per_board = H_seg * V_seg - len(skipped_segments)
+    total_segments_per_board = H_seg * V_seg - len(extended_skipped_segments)
     ae_cm = agg_confusion_matrix(
         bad_hexaboard_paths=bad_hexaboard_paths,
         pred_good_list=ae_pred_good,
