@@ -1,171 +1,242 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
-import torch
 from torch import nn, Tensor
 from torchvision.models.resnet import BasicBlock
 
-
-def _deconv_out(h: int, k: int, s: int, p: int, op: int) -> int:
-    """ConvTranspose2d output formula."""
-    return (h - 1) * s - 2 * p + k + op
+from ..configs import AutoencoderConfig
 
 
 class ResNetAutoencoder(nn.Module):
-    r"""
+    """
     A ResNet-inspired CNN autoencoder using ConvTranspose2d.
 
     Parameters
     ----------
-    height : int
+    config: AutoencoderConfig, optional
+        Configuration object containing model parameters.
+    height : int, optional
         Height of the input images.
-    width : int
+    width : int, optional
         Width of the input images.
-    latent_dim : int
+    latent_dim : int, optional
         Dimension of the latent (bottleneck) vector.
-    initial_filters : int
-        Number of filters in the first convolutional layer (ResNet stem).
-    layers : List[int]
-        Number of BasicBlock modules in each ResNet stage.
-
-    Returns
-    -------
-    Tensor
-        Reconstructed image of shape (batch_size, 3, height, width).
+    init_filters : int, optional
+        Number of filters in the first convolutional layer (stem).
+    layers : List[int], optional
+        Number of Conv-BN-ReLU blocks in each encoder stage.
     """
     def __init__(
         self,
-        height: int,
-        width: int,
-        latent_dim: int,
-        init_filters: int = 64,
-        layers: List[int] = [2, 2, 2, 2]
+        config: Optional[AutoencoderConfig] = None,
+        # Parameters below can override config if supplied explicitly
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        latent_dim: Optional[int] = None,
+        init_filters: Optional[int] = None,
+        layers: Optional[List[int]] = None,
     ):
-        super(ResNetAutoencoder, self).__init__()
-        self.height = height
-        self.width = width
+        super().__init__()
+
+        # Use config if provided, otherwise use defaults
+        if config is not None:
+            self.height = height if height is not None else config.height
+            self.width = width if width is not None else config.width
+            self.latent_dim = latent_dim if latent_dim is not None else config.latent_dim
+            self.init_filters = init_filters if init_filters is not None else config.init_filters
+            self.layers = layers if layers is not None else config.layers
+        else:
+            self.height = height if height is not None else 1016
+            self.width = width if width is not None else 1640
+            self.latent_dim = latent_dim if latent_dim is not None else 32
+            self.init_filters = init_filters if init_filters is not None else 128
+            self.layers = layers if layers is not None else [2, 2, 2]
+
+        # Use GroupNorm
+        self.norm_layer = lambda num_channels: nn.GroupNorm(1, num_channels)
 
         # Encoder
-        self.conv1 = nn.Conv2d(3, init_filters, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(init_filters)
+        self.conv = nn.Conv2d(3, self.init_filters, kernel_size=(10, 16), stride=(5, 8), padding=(5, 0), bias=True)
+        self.gn = self.norm_layer(self.init_filters)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.encoder_layers = nn.ModuleList()
-        in_channels = init_filters
-        
-        for i, num_blocks in enumerate(layers):
-            out_channels = in_channels if i == 0 else in_channels * 2
-            stride = 1 if i == 0 else 2
-            self.encoder_layers.append(self._make_layer(in_channels, out_channels, num_blocks, stride))
+        in_channels = self.init_filters
+        for i, num_blocks in enumerate(self.layers):
+            if i == 0:
+                out_channels = in_channels
+            elif i == len(self.layers) - 1:
+                out_channels = self.latent_dim
+            else:
+                out_channels = in_channels * 2
+
+            stride = 1 if i == 0 else 2  # downsample at the start of each stage (except stage 0)
+            pooling = False if i == 0 else True  # pooling only after the first stage
+            stage = self._make_stage(in_channels, out_channels, num_blocks, stride, pooling)
+            self.encoder_layers.append(stage)
             in_channels = out_channels
 
-        # Record encoder output shape
-        with torch.no_grad():
-            encoder_output_shape = self._forward_shapes(torch.zeros(1, 3, height, width))
-        
-        self._shapes = encoder_output_shape[::-1]
-        self._shapes.append((height, width))
+        # Sizes produced by the stem
+        conv1_out_height = (self.height + 10 - 10) // 5 + 1
+        conv1_out_width = (self.width - 16) // 8 + 1
+        stem_square_size = (conv1_out_height + 2 - 3) // 2 + 1
+        assert stem_square_size == ((conv1_out_width + 2 - 3) // 2 + 1), "Stem must yield a square map."
 
-        # Bottleneck
-        self.compress = nn.Conv2d(in_channels, latent_dim, kernel_size=1, bias=False)
-        self.non_linear = nn.ReLU(inplace=True)
-        self.decompress = nn.Conv2d(latent_dim, in_channels, kernel_size=1, bias=False)
+        # Encoder output per stage
+        encoder_channels = [self.init_filters]
+        for i in range(1, len(self.layers) - 1):
+            encoder_channels.append(encoder_channels[-1] * 2)
+
+        encoder_channels.append(self.latent_dim)
+
+        # Spatial size per stage
+        stage_out = [stem_square_size]
+        stage_conv = [None] * len(self.layers)
+        for i in range(1, len(self.layers)):
+            stride_conv = (stage_out[i - 1] - 1) // 2 + 1
+            stride_pool = stride_conv // 2
+            stage_conv[i] = stride_conv
+            stage_out.append(stride_pool)
 
         # Decoder
         self.decoder_layers = nn.ModuleList()
-        cur_channels = in_channels
+        for i in range(len(self.layers) - 1, 0, -1):
+            in_channels = encoder_channels[i]
+            mid_channels = encoder_channels[i - 1]
 
-        for i, (height_in, width_in) in enumerate(self._shapes[:-1]):
-            height_out, width_out = self._shapes[i + 1]
-
-            # Choose parameters
-            if i == len(self._shapes) - 2:
-                kernel_sizes, stride, padding = 7, 2, 3
-                base_height = _deconv_out(height_in, kernel_sizes, stride, padding, 0)
-                base_width = _deconv_out(width_in, kernel_sizes, stride, padding, 0)
-                output_padding = (height_out - base_height, width_out - base_width)
-            else:
-                kernel_sizes, stride = 2, 2
-                padding_height, output_padding_height = self._solve_dim(height_in, height_out, kernel_sizes, stride)
-                padding_width, output_padding_width = self._solve_dim(width_in, width_out, kernel_sizes, stride)
-                padding = (padding_height, padding_width)
-                output_padding = (output_padding_height, output_padding_width)
-
-            next_channels = max(init_filters, cur_channels // 2) if i < (len(self._shapes) - 2) else 3
+            # Undo pooling
+            output_padding1 = stage_conv[i] - 2 * stage_out[i]
             self.decoder_layers.append(
                 nn.Sequential(
                     nn.ConvTranspose2d(
-                        cur_channels,
-                        next_channels,
-                        kernel_size=kernel_sizes,
-                        stride=stride,
-                        padding=padding,
-                        output_padding=output_padding,
-                        bias=False
+                        in_channels,
+                        mid_channels,
+                        kernel_size=4,
+                        stride=2,
+                        padding=1,
+                        output_padding=int(output_padding1),
+                        bias=True
                     ),
-                    nn.BatchNorm2d(next_channels) if next_channels != 3 else nn.Identity(),
-                    nn.ReLU(inplace=True) if next_channels != 3 else nn.Identity()
+                    self.norm_layer(mid_channels),
+                    nn.ReLU(inplace=True),
                 )
             )
-            cur_channels = next_channels
 
-    @staticmethod
-    def _make_layer(in_channels: int, out_channels: int, blocks: int, stride: int) -> nn.Sequential:
+            # Undo convolution layers with stride=2
+            output_padding2 = stage_out[i - 1] - (2 * stage_conv[i] - 1)
+            assert output_padding2 in (0, 1), f"invalid output_padding2={output_padding2} for stage {i}"
+
+            self.decoder_layers.append(
+                nn.Sequential(
+                    nn.ConvTranspose2d(
+                        mid_channels,
+                        mid_channels,
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                        output_padding=int(output_padding2),
+                        bias=True
+                    ),
+                    self.norm_layer(mid_channels),
+                    nn.ReLU(inplace=True),
+                )
+            )
+
+        # Undo stem maxpool
+        self.decoder_layers.append(
+            nn.Sequential(
+                nn.ConvTranspose2d(
+                    encoder_channels[0],
+                    encoder_channels[0],
+                    kernel_size=2,
+                    stride=2,
+                    padding=0,
+                    bias=True
+                ),
+                self.norm_layer(encoder_channels[0]),
+                nn.ReLU(inplace=True),
+            )
+        )
+
+        # Invert the stem to original size
+        out_height = self.height - ((conv1_out_height - 1) * 5 - 10 + 10)
+        out_width = self.width - ((conv1_out_width - 1) * 8 + 16)
+        assert out_height in (0, 1) and out_width in (0, 1), "Stem inverse requires op in {0, 1}."
+
+        self.decoder_layers.append(
+            nn.Sequential(
+                nn.ConvTranspose2d(
+                    encoder_channels[0],
+                    3,
+                    kernel_size=(10, 16),
+                    stride=(5, 8),
+                    padding=(5, 0),
+                    output_padding=(int(out_height), int(out_width)),
+                    bias=True
+                )
+            )
+        )
+
+    def _make_stage(
+        self,
+        in_channels: int,
+        out_channels: int,
+        blocks: int,
+        stride: int,
+        pooling: bool = False,
+    ) -> nn.Sequential:
+        layers = []
+
+        # First block (may downsample via stride)
         downsample = None
-
         if stride != 1 or in_channels != out_channels:
             downsample = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(out_channels)
+                self.norm_layer(out_channels),
+                nn.ReLU(inplace=True)
             )
 
-        encoder_layers = [BasicBlock(in_channels, out_channels, stride=stride, downsample=downsample)]
+        layers.append(BasicBlock(
+            inplanes=in_channels,
+            planes=out_channels,
+            stride=stride,
+            downsample=downsample,
+            norm_layer=self.norm_layer
+        ))
 
+        # Remaining blocks (stride=1)
         for _ in range(1, blocks):
-            encoder_layers.append(BasicBlock(out_channels, out_channels))
+            layers.append(BasicBlock(out_channels, out_channels, norm_layer=self.norm_layer))
 
-        return nn.Sequential(*encoder_layers)
-    
+        if pooling:
+            layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+
+        return nn.Sequential(*layers)
+
     def _forward_shapes(self, x: Tensor) -> List[Tuple[int, int]]:
         shapes = []
-        x = self.conv1(x)
+        x = self.conv(x)
         shapes.append(x.shape[-2:])
-        x = self.bn1(x)
+        x = self.gn(x)
         x = self.relu(x)
         x = self.maxpool(x)
         shapes.append(x.shape[-2:])
-
-        for layer in self.encoder_layers[1:]:
+        for layer in self.encoder_layers:
             x = layer(x)
             shapes.append(x.shape[-2:])
 
         return shapes
-    
-    def _solve_dim(self, in_size: int, out_size: int, k: int = 2, s: int = 2) -> Tuple[int, int]:
-        for p in (0, 1):
-            base = _deconv_out(in_size, k, s, p, 0)
-            diff = out_size - base
-            if diff in (0, 1):
-                return p, diff
-            
-        raise ValueError("No valid (padding, output_padding) found")
 
     def forward(self, x: Tensor) -> Tensor:
         B, C, H, W = x.shape
 
         # Encoder
-        x = self.conv1(x)
-        x = self.bn1(x)
+        x = self.conv(x)
+        x = self.gn(x)
         x = self.relu(x)
         x = self.maxpool(x)
-
         for layer in self.encoder_layers:
             x = layer(x)
-
-        # Bottleneck
-        x = self.compress(x)
-        x = self.non_linear(x)
-        x = self.decompress(x)
 
         # Decoder
         for layer in self.decoder_layers:

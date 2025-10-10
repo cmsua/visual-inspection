@@ -40,7 +40,28 @@ def get_optim_from_config(optim_config: Dict, registry: Dict, model: nn.Module) 
         if k in sig.parameters and k != 'self'
     }
 
+    # Some optimizers (e.g. RAdam) expect tuple inputs for betas; YAML stores them as lists
+    if 'betas' in valid_args and isinstance(valid_args['betas'], (list, tuple)):
+        valid_args['betas'] = tuple(valid_args['betas'])
+
     return optimizer(model.parameters(), **valid_args)
+
+
+def get_optim_wrapper_from_config(optim_wrapper_config: Dict, registry: Dict, optimizer: Optimizer) -> Optimizer:
+    name = optim_wrapper_config['name']
+    kwargs = optim_wrapper_config.get('kwargs', {})
+
+    if name not in registry:
+        raise ValueError(f"Optimizer wrapper '{name}' not found in registry.")
+    
+    optim_wrapper = registry[name]
+    sig = inspect.signature(optim_wrapper.__init__)
+    valid_args = {
+        k: v for k, v in kwargs.items()
+        if k in sig.parameters and k != 'self'
+    }
+
+    return optim_wrapper(optimizer, **valid_args)
 
 
 def get_scheduler_from_config(scheduler_config: Dict, registry: Dict, optimizer: Optimizer) -> _LRScheduler:

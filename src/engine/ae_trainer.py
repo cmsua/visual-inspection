@@ -3,6 +3,11 @@ from typing import List, Tuple, Dict, Callable, Optional, Union
 
 import numpy as np
 from tqdm.auto import tqdm
+from rich.console import Console
+from rich.progress import (
+    Progress, TextColumn, BarColumn,
+    TimeElapsedColumn, TimeRemainingColumn,
+)
 
 import torch
 from torch import nn
@@ -40,6 +45,8 @@ class AutoencoderTrainer(Trainer):
         Loss function configuration. Overrides config if provided.
     optimizer: Dict, optional
         Optimizer configuration. Overrides config if provided.
+    optimizer_wrapper: Dict, optional
+        Optimizer wrapper configuration. Overrides config if provided.
     scheduler: Dict, optional
         Learning rate scheduler configuration. Overrides config if provided.
     callbacks: List[Dict], optional
@@ -48,8 +55,6 @@ class AutoencoderTrainer(Trainer):
         Number of epochs to train for. Overrides config if provided.
     start_epoch: int, optional
         Epoch to start training from. Overrides config if provided.
-    history: Dict[str, List[float]], optional
-        History of training metrics. If not provided, initializes an empty history.
     logging_dir: str, optional
         Directory to save logs. Overrides config if provided.
     logging_steps: int, optional
@@ -79,17 +84,45 @@ class AutoencoderTrainer(Trainer):
             total_steps = self.num_epochs * len(self.train_loader)
             start_step = self.start_epoch * len(self.train_loader)
             if self.progress_bar and self.rank == 0:
-                global_bar = tqdm(
+                console = Console()
+                progress = Progress(
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    BarColumn(),
+                    TextColumn("step: {task.fields[step]}/{task.fields[total_steps]} |"),
+                    TextColumn("epoch: {task.fields[epoch]}/{task.fields[total_epoch]} |"),
+                    TextColumn("train_loss: {task.fields[avg_loss]:.4f} |"),
+                    TextColumn("train_metric: {task.fields[avg_metric]:.4f}"),
+                    TimeElapsedColumn(),
+                    TimeRemainingColumn(),
+                    console=console,
+                    transient=True,
+                    refresh_per_second=2,
+                )
+                progress.start()
+                task = progress.add_task(
+                    description="Training",
                     total=total_steps,
-                    initial=start_step,
-                    desc="Training",
-                    dynamic_ncols=True
+                    completed=start_step,
+                    epoch=self.start_epoch + 1,
+                    total_epoch=self.num_epochs,
+                    step=0,
+                    total_steps=total_steps,
+                    avg_loss=0.0,
+                    avg_metric=0.0,
+                    val_loss=0.0,
+                    val_metric=0.0
                 )
             else:
                 class _NoOpBar:
-                    def set_postfix(self, *args, **kwargs): pass
+                    def advance(self, *args, **kwargs): pass
                     def update(self, *args, **kwargs): pass
-                global_bar = _NoOpBar()
+                    def stop(self): pass
+                    def update_task(self, *args, **kwargs): pass
+                    def __enter__(self): return self
+                    def __exit__(self, *args): pass
+                progress = _NoOpBar()
+                console = None
+                task = None
 
             for epoch in range(self.start_epoch, self.num_epochs):
                 # Make DistributedSampler shuffle with a different seed each epoch
@@ -127,20 +160,22 @@ class AutoencoderTrainer(Trainer):
                     avg_loss = running_loss_sum / max(running_count, 1)
                     avg_metric = running_metric_sum / max(running_count, 1)
 
-                    # Short summary
-                    if self.rank == 0: 
+                    # Short summary for training
+                    if self.rank == 0 and task is not None:
+                        progress.update(
+                            task,
+                            advance=1,
+                            epoch=epoch,
+                            step=step,
+                            avg_loss=avg_loss,
+                            avg_metric=avg_metric,
+                        )
                         if step % self.logging_steps == 0 or step == total_steps:
-                            tqdm.write(
+                            message = (
                                 f"step: {step}/{total_steps} | "
                                 f"train_loss: {avg_loss:.4f}"
                             )
-
-                        global_bar.set_postfix({
-                            "epoch": f"{epoch + 1}/{self.num_epochs}",
-                            "avg_loss": f"{avg_loss:.4f}"
-                        })
-
-                    global_bar.update(1)
+                            console.print(message)
 
                 # Validation phase
                 self.model.eval()
@@ -158,7 +193,7 @@ class AutoencoderTrainer(Trainer):
                         val_loss_sum += float(loss_val.item()) * bsz
 
                         if self.metric:
-                            val_metric_sum += self.metric(outputs_val, X_val)
+                            val_metric_sum += float(self.metric(outputs_val, X_val)) * bsz
 
                         val_count += bsz
                 
@@ -185,11 +220,18 @@ class AutoencoderTrainer(Trainer):
                 val_metric = (total_metric_sum / max(total_count, 1)) if self.metric else 0.0
 
                 # Short summary for validation
-                if self.rank == 0:
-                    tqdm.write(
-                        f"epoch: {epoch + 1}/{self.num_epochs} | "
-                        f"val_loss: {val_loss:.4f}"
+                if self.rank == 0 and task is not None:
+                    progress.update(
+                        task,
+                        val_loss=val_loss,
+                        val_metric=val_metric
                     )
+                    message = (
+                        f"epoch: {epoch + 1}/{self.num_epochs} | "
+                        f"val_loss: {val_loss:.4f} | "
+                        f"val_metric: {val_metric:.4f}"
+                    )
+                    console.print(message)
 
                 if self.scheduler:
                     self.scheduler.step()
@@ -237,8 +279,7 @@ class AutoencoderTrainer(Trainer):
                 cb.on_train_end(trainer=self)
         except KeyboardInterrupt:
             if self.rank == 0:
-                print(f"\nTraining interrupted at epoch {epoch + 1}. Saving current checkpoint.")
-                self.save_checkpoint(epoch)
+                print(f"\nTraining interrupted at epoch {epoch + 1}.")
                 
             cleanup_ddp()
 

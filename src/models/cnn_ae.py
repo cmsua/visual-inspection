@@ -2,17 +2,16 @@ from typing import List, Tuple, Optional
 
 from torch import nn, Tensor
 
-from ..configs import CNNAutoencoderConfig
+from ..configs import AutoencoderConfig
 
 
 class CNNAutoencoder(nn.Module):
-    r"""
-    A symmetric CNN autoencoder without residuals in the encoder.
-    The decoder mirrors the ResNetAutoencoder decoder structure.
+    """
+    A CNN autoencoder using ConvTranspose2d.
 
     Parameters
     ----------
-    config: CNNAutoencoderConfig, optional
+    config: AutoencoderConfig, optional
         Configuration object containing model parameters.
     height : int, optional
         Height of the input images.
@@ -27,7 +26,7 @@ class CNNAutoencoder(nn.Module):
     """
     def __init__(
         self,
-        config: Optional[CNNAutoencoderConfig] = None,
+        config: Optional[AutoencoderConfig] = None,
         # Parameters below can override config if supplied explicitly
         height: Optional[int] = None,
         width: Optional[int] = None,
@@ -51,15 +50,17 @@ class CNNAutoencoder(nn.Module):
             self.init_filters = init_filters if init_filters is not None else 128
             self.layers = layers if layers is not None else [2, 2, 2]
 
+        # Use GroupNorm
+        self.norm_layer = lambda num_channels: nn.GroupNorm(1, num_channels)
+
         # Encoder
-        self.conv1 = nn.Conv2d(3, self.init_filters, kernel_size=(10, 16), stride=(5, 8), padding=(5, 0), bias=True)
-        self.bn1 = nn.GroupNorm(1, self.init_filters)
+        self.conv = nn.Conv2d(3, self.init_filters, kernel_size=(10, 16), stride=(5, 8), padding=(5, 0), bias=True)
+        self.gn = self.norm_layer(self.init_filters)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.encoder_layers = nn.ModuleList()
         in_channels = self.init_filters
-
         for i, num_blocks in enumerate(self.layers):
             if i == 0:
                 out_channels = in_channels
@@ -74,18 +75,6 @@ class CNNAutoencoder(nn.Module):
             self.encoder_layers.append(stage)
             in_channels = out_channels
 
-        # with torch.no_grad():
-        #     dummy_input = torch.zeros(1, 3, height, width)
-        #     self._shapes = self._forward_shapes(dummy_input)
-        #     self._shapes = self._shapes[::-1]
-        #     self._shapes.append((height, width))
-        #     print(f"Encoder output shapes: {self._shapes}")
-
-        # Bottleneck
-        # self.compress = nn.Conv2d(in_channels, latent_dim, kernel_size=1, bias=False)
-        # self.non_linear = nn.ReLU(inplace=True)
-        # self.decompress = nn.Conv2d(latent_dim, in_channels, kernel_size=1, bias=False)
-
         # Sizes produced by the stem
         conv1_out_height = (self.height + 10 - 10) // 5 + 1
         conv1_out_width = (self.width - 16) // 8 + 1
@@ -94,7 +83,6 @@ class CNNAutoencoder(nn.Module):
 
         # Encoder output per stage
         encoder_channels = [self.init_filters]
-
         for i in range(1, len(self.layers) - 1):
             encoder_channels.append(encoder_channels[-1] * 2)
 
@@ -103,7 +91,6 @@ class CNNAutoencoder(nn.Module):
         # Spatial size per stage
         stage_out = [stem_square_size]
         stage_conv = [None] * len(self.layers)
-
         for i in range(1, len(self.layers)):
             stride_conv = (stage_out[i - 1] - 1) // 2 + 1
             stride_pool = stride_conv // 2
@@ -112,7 +99,6 @@ class CNNAutoencoder(nn.Module):
 
         # Decoder
         self.decoder_layers = nn.ModuleList()
-
         for i in range(len(self.layers) - 1, 0, -1):
             in_channels = encoder_channels[i]
             mid_channels = encoder_channels[i - 1]
@@ -130,7 +116,7 @@ class CNNAutoencoder(nn.Module):
                         output_padding=int(output_padding1),
                         bias=True
                     ),
-                    nn.GroupNorm(1, mid_channels),
+                    self.norm_layer(mid_channels),
                     nn.ReLU(inplace=True),
                 )
             )
@@ -150,7 +136,7 @@ class CNNAutoencoder(nn.Module):
                         output_padding=int(output_padding2),
                         bias=True
                     ),
-                    nn.GroupNorm(1, mid_channels),
+                    self.norm_layer(mid_channels),
                     nn.ReLU(inplace=True),
                 )
             )
@@ -166,7 +152,7 @@ class CNNAutoencoder(nn.Module):
                     padding=0,
                     bias=True
                 ),
-                nn.GroupNorm(1, encoder_channels[0]),
+                self.norm_layer(encoder_channels[0]),
                 nn.ReLU(inplace=True),
             )
         )
@@ -203,7 +189,7 @@ class CNNAutoencoder(nn.Module):
         # First block (may downsample via stride)
         layers.append(nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=True),
-            nn.GroupNorm(1, out_channels),
+            self.norm_layer(out_channels),
             nn.ReLU(inplace=True),
         ))
 
@@ -211,7 +197,7 @@ class CNNAutoencoder(nn.Module):
         for _ in range(1, blocks):
             layers.append(nn.Sequential(
                 nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=True),
-                nn.GroupNorm(1, out_channels),
+                self.norm_layer(out_channels),
                 nn.ReLU(inplace=True),
             ))
 
@@ -222,39 +208,28 @@ class CNNAutoencoder(nn.Module):
 
     def _forward_shapes(self, x: Tensor) -> List[Tuple[int, int]]:
         shapes = []
-        x = self.conv1(x)
+        x = self.conv(x)
         shapes.append(x.shape[-2:])
-        x = self.bn1(x)
+        x = self.gn(x)
         x = self.relu(x)
         x = self.maxpool(x)
         shapes.append(x.shape[-2:])
-
         for layer in self.encoder_layers:
             x = layer(x)
             shapes.append(x.shape[-2:])
 
         return shapes
-    
-    @property
-    def shapes(self) -> List[Tuple[int, int]]:
-        return self._shapes
 
     def forward(self, x: Tensor) -> Tensor:
         B, C, H, W = x.shape
 
         # Encoder
-        x = self.conv1(x)
-        x = self.bn1(x)
+        x = self.conv(x)
+        x = self.gn(x)
         x = self.relu(x)
         x = self.maxpool(x)
-
         for layer in self.encoder_layers:
             x = layer(x)
-
-        # Bottleneck
-        # x = self.compress(x)
-        # x = self.non_linear(x)
-        # x = self.decompress(x)
 
         # Decoder
         for layer in self.decoder_layers:

@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from src.configs import CNNAutoencoderConfig, TrainConfig
+from src.configs import AutoencoderConfig, TrainConfig
 from src.loss import LOSS_REGISTRY
 from src.models import CNNAutoencoder
 from src.utils import get_loss_from_config, set_seed
@@ -45,7 +45,7 @@ def main(
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
-    model_config = CNNAutoencoderConfig.from_dict(config['model'])
+    model_config = AutoencoderConfig.from_dict(config['model'])
     eval_config = TrainConfig.from_dict(config['train'])
 
     # Convert np.ndarray to torch.Tensor: (H, W, C) -> (C, H, W)

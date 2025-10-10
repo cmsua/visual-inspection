@@ -6,7 +6,7 @@ import torch
 import torch.multiprocessing as mp
 from torchvision import transforms
 
-from src.configs import CNNAutoencoderConfig, TrainConfig
+from src.configs import AutoencoderConfig, TrainConfig
 from src.engine import AutoencoderTrainer
 from src.models import CNNAutoencoder
 from src.utils import set_seed, setup_ddp, cleanup_ddp
@@ -40,7 +40,7 @@ def main(
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
-    model_config = CNNAutoencoderConfig.from_dict(config['model'])
+    model_config = AutoencoderConfig.from_dict(config['model'])
     train_config = TrainConfig.from_dict(config['train'])
 
     # Initialize multi-GPU processing

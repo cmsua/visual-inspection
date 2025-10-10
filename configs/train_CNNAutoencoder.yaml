@@ -33,10 +33,10 @@ train:
               mode: 'min'  # 'min' or 'max'
               patience: 5
               min_delta: 0.001
-    num_epochs: 50
+    num_epochs: 100
     start_epoch: 0
     logging_dir: 'logs'
-    logging_steps: 25
+    logging_steps: 30
     progress_bar: True
     save_best: True
     save_ckpt: True

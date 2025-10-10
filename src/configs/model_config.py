@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class CNNAutoencoderConfig:
+class AutoencoderConfig:
     height: int
     width: int
     latent_dim: int

@@ -5,6 +5,11 @@ from typing import List, Tuple, Dict, Callable, Optional, Union
 
 import numpy as np
 from tqdm.auto import tqdm
+from rich.console import Console
+from rich.progress import (
+    Progress, TextColumn, BarColumn,
+    TimeElapsedColumn, TimeRemainingColumn,
+)
 
 import torch
 import torch.nn.functional as F
@@ -25,6 +30,7 @@ from ..utils import (
     CALLBACK_REGISTRY,
     get_loss_from_config,
     get_optim_from_config,
+    get_optim_wrapper_from_config,
     get_scheduler_from_config,
     get_callbacks_from_config,
     cleanup_ddp
@@ -57,6 +63,8 @@ class Trainer:
         Loss function configuration. Overrides config if provided.
     optimizer: Dict, optional
         Optimizer configuration. Overrides config if provided.
+    optimizer_wrapper: Dict, optional
+        Optimizer wrapper configuration. Overrides config if provided.
     scheduler: Dict, optional
         Learning rate scheduler configuration. Overrides config if provided.
     callbacks: List[Dict], optional
@@ -65,8 +73,6 @@ class Trainer:
         Number of epochs to train for. Overrides config if provided.
     start_epoch: int, optional
         Epoch to start training from. Overrides config if provided.
-    history: Dict[str, List[float]], optional
-        History of training metrics. If not provided, initializes an empty history.
     logging_dir: str, optional
         Directory to save logs. Overrides config if provided.
     logging_steps: int, optional
@@ -97,11 +103,11 @@ class Trainer:
         batch_size: Optional[int] = None,
         criterion: Optional[Dict] = None,
         optimizer: Optional[Dict] = None,
+        optimizer_wrapper: Optional[Dict] = None,
         scheduler: Optional[Dict] = None,
         callbacks: Optional[List[Dict]] = None,
         num_epochs: Optional[int] = None,
         start_epoch: Optional[int] = None,
-        history: Optional[Dict[str, List[float]]] = None,
         logging_dir: Optional[str] = None,
         logging_steps: Optional[int] = None,
         progress_bar: Optional[bool] = None,
@@ -143,6 +149,8 @@ class Trainer:
             self.batch_size = batch_size if batch_size is not None else config.batch_size
             self.criterion = get_loss_from_config(criterion if criterion is not None else config.criterion, LOSS_REGISTRY)
             self.optimizer = get_optim_from_config(optimizer if optimizer is not None else config.optimizer, OPTIM_REGISTRY, self.model)
+            if optimizer_wrapper is not None or config.optimizer_wrapper is not None:
+                self.optimizer = get_optim_wrapper_from_config(optimizer_wrapper if optimizer_wrapper is not None else config.optimizer_wrapper, OPTIM_REGISTRY, self.optimizer)
             self.scheduler = get_scheduler_from_config(scheduler if scheduler is not None else config.scheduler, SCHEDULER_REGISTRY, self.optimizer)
             self.callbacks = get_callbacks_from_config(callbacks if callbacks is not None else config.callbacks, CALLBACK_REGISTRY)
             self.num_epochs = num_epochs if num_epochs is not None else config.num_epochs
@@ -157,10 +165,14 @@ class Trainer:
             self.pin_memory = pin_memory if pin_memory is not None else config.pin_memory
         else:
             self.batch_size = batch_size if batch_size is not None else 64
-            if criterion is None: raise ValueError("Criterion must be provided if config is not supplied.")
+            if criterion is None:
+                raise ValueError("Criterion must be provided if config is not supplied.")
             self.criterion = get_loss_from_config(criterion, LOSS_REGISTRY)
-            if optimizer is None: raise ValueError("Optimizer must be provided if config is not supplied.")
+            if optimizer is None:
+                raise ValueError("Optimizer must be provided if config is not supplied.")
             self.optimizer = get_optim_from_config(optimizer, OPTIM_REGISTRY, self.model)
+            if optimizer_wrapper is not None:
+                self.optimizer = get_optim_wrapper_from_config(optimizer_wrapper, OPTIM_REGISTRY, self.optimizer)
             self.scheduler = get_scheduler_from_config(scheduler, SCHEDULER_REGISTRY, self.optimizer) if scheduler else None
             self.callbacks = get_callbacks_from_config(callbacks, CALLBACK_REGISTRY) if callbacks is not None else None
             self.num_epochs = num_epochs if num_epochs is not None else 20
@@ -207,7 +219,7 @@ class Trainer:
 
         # Initialize metrics and history
         self.metric = metric
-        self.history = history or {
+        self.history = {
             'epoch': [],
             'train_loss': [],
             'train_metric': [],
@@ -288,7 +300,7 @@ class Trainer:
         if self.scheduler is not None and checkpoint['scheduler_state_dict'] is not None:
             self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
 
-        self.start_epoch = checkpoint['epoch']
+        self.start_epoch = checkpoint['epoch'] + 1
         self.history = checkpoint['history']
     
     def load_best_model(self, best_model_path: str):
@@ -319,17 +331,45 @@ class Trainer:
             total_steps = self.num_epochs * len(self.train_loader)
             start_step = self.start_epoch * len(self.train_loader)
             if self.progress_bar and self.rank == 0:
-                global_bar = tqdm(
+                console = Console()
+                progress = Progress(
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    BarColumn(),
+                    TextColumn("step: {task.fields[step]}/{task.fields[total_steps]} |"),
+                    TextColumn("epoch: {task.fields[epoch]}/{task.fields[total_epoch]} |"),
+                    TextColumn("train_loss: {task.fields[avg_loss]:.4f} |"),
+                    TextColumn("train_metric: {task.fields[avg_metric]:.4f}"),
+                    TimeElapsedColumn(),
+                    TimeRemainingColumn(),
+                    console=console,
+                    transient=True,
+                    refresh_per_second=2,
+                )
+                progress.start()
+                task = progress.add_task(
+                    description="Training",
                     total=total_steps,
-                    initial=start_step,
-                    desc="Training",
-                    dynamic_ncols=True
+                    completed=start_step,
+                    epoch=self.start_epoch + 1,
+                    total_epoch=self.num_epochs,
+                    step=0,
+                    total_steps=total_steps,
+                    avg_loss=0.0,
+                    avg_metric=0.0,
+                    val_loss=0.0,
+                    val_metric=0.0
                 )
             else:
                 class _NoOpBar:
-                    def set_postfix(self, *args, **kwargs): pass
+                    def advance(self, *args, **kwargs): pass
                     def update(self, *args, **kwargs): pass
-                global_bar = _NoOpBar()
+                    def stop(self): pass
+                    def update_task(self, *args, **kwargs): pass
+                    def __enter__(self): return self
+                    def __exit__(self, *args): pass
+                progress = _NoOpBar()
+                console = None
+                task = None
 
             for epoch in range(self.start_epoch, self.num_epochs):
                 # Make DistributedSampler shuffle with a different seed each epoch
@@ -368,22 +408,23 @@ class Trainer:
                     avg_loss = running_loss_sum / max(running_count, 1)
                     avg_metric = running_metric_sum / max(running_count, 1)
                     
-                    # Short summary
-                    if self.rank == 0:
+                    # Short summary for training
+                    if self.rank == 0 and task is not None:
+                        progress.update(
+                            task,
+                            advance=1,
+                            epoch=epoch,
+                            step=step,
+                            avg_loss=avg_loss,
+                            avg_metric=avg_metric,
+                        )
                         if step % self.logging_steps == 0 or step == total_steps:
-                            tqdm.write(
+                            message = (
                                 f"step: {step}/{total_steps} | "
                                 f"train_loss: {avg_loss:.4f} | "
                                 f"train_metric: {avg_metric:.4f}"
                             )
-
-                        global_bar.set_postfix({
-                            "epoch": f"{epoch + 1}/{self.num_epochs}",
-                            "avg_loss": f"{avg_loss:.4f}",
-                            "avg_metric": f"{avg_metric:.4f}"
-                        })
-
-                    global_bar.update(1)
+                            console.print(message)
 
                 # Validation phase
                 self.model.eval()
@@ -429,12 +470,18 @@ class Trainer:
                 val_metric = (total_metric_sum / max(total_count, 1)) if self.metric else 0.0
 
                 # Short summary for validation
-                if self.rank == 0:
-                    tqdm.write(
+                if self.rank == 0 and task is not None:
+                    progress.update(
+                        task,
+                        val_loss=val_loss,
+                        val_metric=val_metric
+                    )
+                    message = (
                         f"epoch: {epoch + 1}/{self.num_epochs} | "
                         f"val_loss: {val_loss:.4f} | "
                         f"val_metric: {val_metric:.4f}"
                     )
+                    console.print(message)
 
                 if self.scheduler:
                     self.scheduler.step()
@@ -482,8 +529,7 @@ class Trainer:
                 cb.on_train_end(trainer=self)
         except KeyboardInterrupt:
             if self.rank == 0:
-                print(f"\nTraining interrupted at epoch {epoch + 1}. Saving current checkpoint.")
-                self.save_checkpoint(epoch)
+                print(f"\nTraining interrupted at epoch {epoch + 1}.")
                 
             cleanup_ddp()
 
