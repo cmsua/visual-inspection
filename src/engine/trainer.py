@@ -5,11 +5,6 @@ from typing import List, Tuple, Dict, Callable, Optional, Union
 
 import numpy as np
 from tqdm.auto import tqdm
-from rich.console import Console
-from rich.progress import (
-    Progress, TextColumn, BarColumn,
-    TimeElapsedColumn, TimeRemainingColumn,
-)
 
 import torch
 import torch.nn.functional as F
@@ -331,45 +326,17 @@ class Trainer:
             total_steps = self.num_epochs * len(self.train_loader)
             start_step = self.start_epoch * len(self.train_loader)
             if self.progress_bar and self.rank == 0:
-                console = Console()
-                progress = Progress(
-                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                    BarColumn(),
-                    TextColumn("step: {task.fields[step]}/{task.fields[total_steps]} |"),
-                    TextColumn("epoch: {task.fields[epoch]}/{task.fields[total_epoch]} |"),
-                    TextColumn("train_loss: {task.fields[avg_loss]:.4f} |"),
-                    TextColumn("train_metric: {task.fields[avg_metric]:.4f}"),
-                    TimeElapsedColumn(),
-                    TimeRemainingColumn(),
-                    console=console,
-                    transient=True,
-                    refresh_per_second=2,
-                )
-                progress.start()
-                task = progress.add_task(
-                    description="Training",
+                global_bar = tqdm(
                     total=total_steps,
-                    completed=start_step,
-                    epoch=self.start_epoch + 1,
-                    total_epoch=self.num_epochs,
-                    step=0,
-                    total_steps=total_steps,
-                    avg_loss=0.0,
-                    avg_metric=0.0,
-                    val_loss=0.0,
-                    val_metric=0.0
+                    initial=start_step,
+                    desc="Training",
+                    dynamic_ncols=True
                 )
             else:
                 class _NoOpBar:
-                    def advance(self, *args, **kwargs): pass
+                    def set_postfix(self, *args, **kwargs): pass
                     def update(self, *args, **kwargs): pass
-                    def stop(self): pass
-                    def update_task(self, *args, **kwargs): pass
-                    def __enter__(self): return self
-                    def __exit__(self, *args): pass
-                progress = _NoOpBar()
-                console = None
-                task = None
+                global_bar = _NoOpBar()
 
             for epoch in range(self.start_epoch, self.num_epochs):
                 # Make DistributedSampler shuffle with a different seed each epoch
@@ -409,22 +376,21 @@ class Trainer:
                     avg_metric = running_metric_sum / max(running_count, 1)
                     
                     # Short summary for training
-                    if self.rank == 0 and task is not None:
-                        progress.update(
-                            task,
-                            advance=1,
-                            epoch=epoch,
-                            step=step,
-                            avg_loss=avg_loss,
-                            avg_metric=avg_metric,
-                        )
+                    if self.rank == 0:
                         if step % self.logging_steps == 0 or step == total_steps:
-                            message = (
+                            tqdm.write(
                                 f"step: {step}/{total_steps} | "
                                 f"train_loss: {avg_loss:.4f} | "
                                 f"train_metric: {avg_metric:.4f}"
                             )
-                            console.print(message)
+
+                        global_bar.set_postfix({
+                            "epoch": f"{epoch + 1}/{self.num_epochs}",
+                            "avg_loss": f"{avg_loss:.4f}",
+                            "avg_metric": f"{avg_metric:.4f}"
+                        })
+
+                    global_bar.update(1)
 
                 # Validation phase
                 self.model.eval()
@@ -470,18 +436,12 @@ class Trainer:
                 val_metric = (total_metric_sum / max(total_count, 1)) if self.metric else 0.0
 
                 # Short summary for validation
-                if self.rank == 0 and task is not None:
-                    progress.update(
-                        task,
-                        val_loss=val_loss,
-                        val_metric=val_metric
-                    )
-                    message = (
+                if self.rank == 0:
+                    tqdm.write(
                         f"epoch: {epoch + 1}/{self.num_epochs} | "
                         f"val_loss: {val_loss:.4f} | "
                         f"val_metric: {val_metric:.4f}"
                     )
-                    console.print(message)
 
                 if self.scheduler:
                     self.scheduler.step()
