@@ -16,60 +16,7 @@ from ..utils import cleanup_ddp
 class AutoencoderTrainer(Trainer):
     """
     Trainer specifically for autoencoder models.
-    Inherits from Trainer and implements the train method for autoencoders.
-    
-    Parameters
-    ----------
-    model: nn.Module
-        The model to train.
-    train_dataset: Dataset
-        The dataset to use for training.
-    val_dataset: Dataset
-        The dataset to use for validation.
-    test_dataset: Dataset, optional
-        The dataset to use for testing.
-    device: torch.device or int, optional
-        Device to run the training on. Overrides config if provided.
-    metric: Callable, optional
-        A function to compute a metric for evaluation.
-    config: TrainConfig, optional
-        Configuration object containing training parameters.
-    batch_size: int, optional
-        Batch size for training. Overrides config if provided.
-    criterion: Dict, optional
-        Loss function configuration. Overrides config if provided.
-    optimizer: Dict, optional
-        Optimizer configuration. Overrides config if provided.
-    optimizer_wrapper: Dict, optional
-        Optimizer wrapper configuration. Overrides config if provided.
-    scheduler: Dict, optional
-        Learning rate scheduler configuration. Overrides config if provided.
-    callbacks: List[Dict], optional
-        A list of callbacks to execute during training. Overrides config if provided.
-    num_epochs: int, optional
-        Number of epochs to train for. Overrides config if provided.
-    start_epoch: int, optional
-        Epoch to start training from. Overrides config if provided.
-    logging_dir: str, optional
-        Directory to save logs. Overrides config if provided.
-    logging_steps: int, optional
-        Frequency of logging during training. Overrides config if provided.
-    progress_bar: bool, optional
-        Whether to display a tqdm progress bar. Useful to disable on HPC.
-    save_best: bool, optional
-        Whether to save the best model based on validation loss. Overrides config if provided.
-    save_ckpt: bool, optional
-        Whether to save checkpoints during training. Overrides config if provided.
-    save_fig: bool, optional
-        Whether to save evaluation figures. Overrides config if provided.
-    num_workers: int, optional
-        Number of workers for data loading. Overrides config if provided.
-    pin_memory: bool, optional
-        Whether to use pinned memory for data loading. Overrides config if provided.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def train(self) -> Tuple[Dict[str, List[float]], nn.Module]:
         try:
             # Callback before training

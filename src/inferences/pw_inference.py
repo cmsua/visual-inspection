@@ -12,7 +12,7 @@ def pixelwise_inference(
 ) -> List[Tuple[int, int]]:
     """
     Performs pixel-wise comparison between the baseline and new hexaboard images and
-    flags every (H_seg_idx, V_seg_idx) segment whose SSIM drops below *threshold*.
+    flags every (H_seg_idx, V_seg_idx) segment whose (1 - SSIM) is above `threshold`.
 
     Parameters
     ----------

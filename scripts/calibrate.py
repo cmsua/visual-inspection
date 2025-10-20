@@ -49,6 +49,9 @@ def main(
 ):
     device = torch.device(device)
 
+    # Reproducibility settings
+    set_seed(42)
+
     # Load the baseline hexaboard to get image dimensions
     baseline_hexaboard = load_hexaboard(os.path.join(train_data_dir, 'aligned_images1.npy'))
     _, _, height, width, _ = baseline_hexaboard.shape
@@ -103,9 +106,6 @@ def main(
 if __name__ == '__main__':
     # Parse command-line arguments
     args = parse_args()
-
-    # Reproducibility settings
-    set_seed(42)
 
     # Run the calibration
     main(

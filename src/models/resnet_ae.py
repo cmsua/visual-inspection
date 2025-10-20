@@ -9,21 +9,6 @@ from ..configs import AutoencoderConfig
 class ResNetAutoencoder(nn.Module):
     """
     A ResNet-inspired CNN autoencoder using ConvTranspose2d.
-
-    Parameters
-    ----------
-    config: AutoencoderConfig, optional
-        Configuration object containing model parameters.
-    height : int, optional
-        Height of the input images.
-    width : int, optional
-        Width of the input images.
-    latent_dim : int, optional
-        Dimension of the latent (bottleneck) vector.
-    init_filters : int, optional
-        Number of filters in the first convolutional layer (stem).
-    layers : List[int], optional
-        Number of Conv-BN-ReLU blocks in each encoder stage.
     """
     def __init__(
         self,
@@ -35,6 +20,22 @@ class ResNetAutoencoder(nn.Module):
         init_filters: Optional[int] = None,
         layers: Optional[List[int]] = None,
     ):
+        """
+        Parameters
+        ----------
+        config: AutoencoderConfig, optional
+            Configuration object containing model parameters.
+        height : int, optional
+            Height of the input images.
+        width : int, optional
+            Width of the input images.
+        latent_dim : int, optional
+            Dimension of the latent (bottleneck) vector.
+        init_filters : int, optional
+            Number of filters in the first convolutional layer (stem).
+        layers : List[int], optional
+            Number of BasicBlocks in each encoder stage.
+        """
         super().__init__()
 
         # Use config if provided, otherwise use defaults

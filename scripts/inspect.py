@@ -53,6 +53,9 @@ def main(
 ):
     device = torch.device(device)
 
+    # Reproducibility settings
+    set_seed(42)
+
     # Load the hexaboard data
     baseline_hexaboard = load_hexaboard(baseline_hexaboard_path)
     new_hexaboard = load_hexaboard(new_hexaboard_path)
@@ -106,9 +109,6 @@ def main(
 if __name__ == '__main__':
     # Parse command-line arguments
     args = parse_args()
-
-    # Reproducibility settings
-    set_seed(42)
 
     # Run the inspection
     main(

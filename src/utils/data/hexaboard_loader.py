@@ -47,7 +47,7 @@ def load_skipped_segments(path: str) -> Set[Tuple[int, int]]:
     Set[Tuple[int, int]]
         A set of tuples representing the (H_seg, V_seg) indices of segments to skip.
     """
-    with open(path, "r") as f:
+    with open(path, 'r') as f:
         skipped_segments = json.load(f)
         
     return set(map(tuple, skipped_segments))

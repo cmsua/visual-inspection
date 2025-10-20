@@ -17,7 +17,7 @@ def autoencoder_inference(
 ) -> List[Tuple[int, int]]:
     """
     Compares the autoencoder's reconstruction of hexaboard segments against the original segments and
-    flags every (H_seg_idx, V_seg_idx) segment whose reconstruction SSIM drops below *threshold*.
+    flags every (H_seg_idx, V_seg_idx) segment whose reconstruction (1 - SSIM) is above `threshold`.
 
     Parameters
     ----------

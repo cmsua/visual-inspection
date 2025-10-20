@@ -12,7 +12,6 @@ from .callbacks import BaseCallback
 def get_loss_from_config(loss_config: Dict, registry: Dict) -> _Loss:
     name = loss_config['name']
     kwargs = loss_config.get('kwargs', {})
-
     if name not in registry:
         raise ValueError(f"Loss function '{name}' not found in registry.")
     
@@ -29,7 +28,6 @@ def get_loss_from_config(loss_config: Dict, registry: Dict) -> _Loss:
 def get_optim_from_config(optim_config: Dict, registry: Dict, model: nn.Module) -> Optimizer:
     name = optim_config['name']
     kwargs = optim_config.get('kwargs', {})
-
     if name not in registry:
         raise ValueError(f"Optimizer '{name}' not found in registry.")
     
@@ -50,7 +48,6 @@ def get_optim_from_config(optim_config: Dict, registry: Dict, model: nn.Module) 
 def get_optim_wrapper_from_config(optim_wrapper_config: Dict, registry: Dict, optimizer: Optimizer) -> Optimizer:
     name = optim_wrapper_config['name']
     kwargs = optim_wrapper_config.get('kwargs', {})
-
     if name not in registry:
         raise ValueError(f"Optimizer wrapper '{name}' not found in registry.")
     
@@ -67,7 +64,6 @@ def get_optim_wrapper_from_config(optim_wrapper_config: Dict, registry: Dict, op
 def get_scheduler_from_config(scheduler_config: Dict, registry: Dict, optimizer: Optimizer) -> _LRScheduler:
     name = scheduler_config['name']
     kwargs = scheduler_config.get('kwargs', {})
-
     if name not in registry:
         raise ValueError(f"Scheduler '{name}' not found in registry.")
     
@@ -83,11 +79,9 @@ def get_scheduler_from_config(scheduler_config: Dict, registry: Dict, optimizer:
 
 def get_callbacks_from_config(callbacks_config: List[Dict], registry: Dict) -> List[BaseCallback]:
     callbacks = []
-
     for cb_cfg in callbacks_config:
         name = cb_cfg['name']
         kwargs = cb_cfg.get('kwargs', {})
-
         if name not in registry:
             raise ValueError(f"Callback '{name}' not found in registry.")
         

@@ -14,7 +14,7 @@ class HexaboardDataset(Dataset):
     """
     Dataset of hexaboard segments for a CNN autoencoder.
     
-    Similar to torchvision's ImageFolder, this class loads hexaboard data from a directory
+    This class loads hexaboard data from a directory
     containing multiple .npy files, where each file represents one hexaboard.
 
     Expected file structure:
@@ -33,7 +33,7 @@ class HexaboardDataset(Dataset):
     transform : Callable, optional
         A function/transformation that takes in a numpy array of shape
         (height, width, num_channels) and returns a torch.Tensor of shape (num_channels, height, width).
-        E.g. transforms.ToTensor().
+        E.g. `transforms.ToTensor()`.
 
     Returns
     -------
