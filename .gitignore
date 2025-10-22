@@ -7,3 +7,5 @@ data/*
 !data/.gitkeep
 docker/*
 venv/*
+AGENTS.md
+*copy*

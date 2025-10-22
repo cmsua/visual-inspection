@@ -110,7 +110,7 @@ python -m scripts.evaluate \
 - `--display-segment-idx`: Segment index to display in the reconstruction plot (default: `83`)
 
 ![Autoencoder evaluation performance](logs/CNNAutoencoder/output/ae_performance.png)
-*The model reconstructed poorly on bad segments, so SSIM is lower.*
+*The model reconstructed poorly on bad segments, so MAE is higher.*
 
 ## Calibrate the Thresholds
 

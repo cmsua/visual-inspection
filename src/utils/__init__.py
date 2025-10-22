@@ -9,3 +9,9 @@ from .get_config import (
 from .get_threshold import calibrate_metrics
 from .metrics import agg_confusion_matrix
 from .multigpu import set_seed, setup_ddp, cleanup_ddp
+from .get_results import (
+    InspectionResults,
+    SKIPPED_SEGMENT,
+    OK_SEGMENT,
+    FLAGGED_SEGMENT,
+)

@@ -7,7 +7,7 @@ import torch
 
 from src.inferences import autoencoder_inference, pixelwise_inference
 from src.models import CNNAutoencoder
-from src.utils import set_seed
+from src.utils import InspectionResults, set_seed
 from src.utils.data import load_hexaboard, load_skipped_segments
 
 
@@ -50,7 +50,7 @@ def main(
     layers: List = [2, 2, 2],
     best_model_path: str = './logs/CNNAutoencoder/best/run_01.pt',
     device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
-):
+) -> InspectionResults:
     device = torch.device(device)
 
     # Reproducibility settings
@@ -59,7 +59,9 @@ def main(
     # Load the hexaboard data
     baseline_hexaboard = load_hexaboard(baseline_hexaboard_path)
     new_hexaboard = load_hexaboard(new_hexaboard_path)
-    _, _, height, width, _ = baseline_hexaboard.shape
+    H_seg, V_seg, height, width, channels = baseline_hexaboard.shape
+    segment_shape = (height, width, channels)
+    grid_shape = (H_seg, V_seg)
 
     # Load the model
     model = CNNAutoencoder(
@@ -94,16 +96,18 @@ def main(
         skipped_segments=skipped_segments
     )
 
-    # Lists of flagged segments
-    double_flagged = sorted(list(set(pw_indices) & set(ae_indices)))
-    ml_flagged = sorted(set(ae_indices) - set(double_flagged))
-    pixel_flagged = sorted(set(pw_indices) - set(double_flagged))
-    all_flagged = sorted(list(set(ae_indices).union(pw_indices)))
+    # Compile the inspection results
+    results = InspectionResults.from_segment_flags(
+        shape=grid_shape,
+        pixel_flagged=pw_indices,
+        autoencoder_flagged=ae_indices,
+        skipped_segments=skipped_segments,
+        baseline_path=baseline_hexaboard_path,
+        inspected_path=new_hexaboard_path,
+        segment_shape=segment_shape
+    )
 
-    print(f"Double flagged segments: {double_flagged}")
-    print(f"Autoencoder flagged segments: {ml_flagged}")
-    print(f"Pixel-wise flagged segments: {pixel_flagged}")
-    print(f"All flagged segments: {all_flagged}")
+    return results
 
 
 if __name__ == '__main__':
@@ -111,7 +115,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     # Run the inspection
-    main(
+    inspection_results = main(
         baseline_hexaboard_path=args.baseline_hexaboard_path,
         new_hexaboard_path=args.new_hexaboard_path,
         skipped_segments_path=args.skipped_segments_path,
@@ -122,4 +126,18 @@ if __name__ == '__main__':
         layers=args.layers,
         best_model_path=args.best_model_path,
         device=args.device
+    )
+
+    flags = inspection_results.metadata.get('flagged_segments', {})
+    print(f"Pixel-only flagged segments: {flags.get('pixel_only', [])}")
+    print(f"Autoencoder-only flagged segments: {flags.get('autoencoder_only', [])}")
+    print(f"Flagged by both methods: {flags.get('both_methods', [])}")
+
+    summary = inspection_results.summary()
+    print(
+        "Inspection summary - "
+        f"pixel: {summary['pixel_flagged']} | "
+        f"autoencoder: {summary['autoencoder_flagged']} | "
+        f"hybrid: {summary['hybrid_flagged']} | "
+        f"skipped: {summary['skipped']}"
     )
