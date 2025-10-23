@@ -55,8 +55,8 @@ class CNNAutoencoder(nn.Module):
         self.norm_layer = lambda num_channels: nn.GroupNorm(1, num_channels)
 
         # Encoder
-        self.conv = nn.Conv2d(3, self.init_filters, kernel_size=(10, 16), stride=(5, 8), padding=(5, 0), bias=True)
-        self.gn = self.norm_layer(self.init_filters)
+        self.conv1 = nn.Conv2d(3, self.init_filters, kernel_size=(10, 16), stride=(5, 8), padding=(5, 0), bias=True)
+        self.bn1 = self.norm_layer(self.init_filters)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
@@ -209,9 +209,9 @@ class CNNAutoencoder(nn.Module):
 
     def _forward_shapes(self, x: Tensor) -> List[Tuple[int, int]]:
         shapes = []
-        x = self.conv(x)
+        x = self.conv1(x)
         shapes.append(x.shape[-2:])
-        x = self.gn(x)
+        x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
         shapes.append(x.shape[-2:])
@@ -225,8 +225,8 @@ class CNNAutoencoder(nn.Module):
         B, C, H, W = x.shape
 
         # Encoder
-        x = self.conv(x)
-        x = self.gn(x)
+        x = self.conv1(x)
+        x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
         for layer in self.encoder_layers:

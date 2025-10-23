@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hexaboard Visual Inspection</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="app-header">
+            <h1>Hexaboard Visual Inspection</h1>
+            <div class="board-loader">
+                <label for="board-path">Board path</label>
+                <input id="board-path" type="text" value="./data/bad_example/aligned_images5.npy" spellcheck="false">
+                <button id="load-board">Load Board</button>
+                <button id="run-inspection">Run Inspection</button>
+            </div>
+            <div id="run-progress" class="run-progress hidden" aria-hidden="true">
+                <div class="progress-bar"></div>
+            </div>
+            <div id="run-status" class="run-status" aria-live="polite"></div>
+        </header>
+
+        <main class="app-main">
+            <section class="segment-viewer">
+                <div class="image-frame">
+                    <img id="segment-image" alt="Segment preview">
+                    <div id="image-loader" class="image-loader hidden">Loading...</div>
+                </div>
+                <div class="segment-meta">
+                    <div class="segment-position">
+                        <span id="segment-label">Segment (0, 0)</span>
+                    </div>
+
+                    <div class="status-flags">
+                        <label>
+                            <input id="flag-skipped" type="checkbox" disabled>
+                            Skipped segment
+                        </label>
+                        <label>
+                            <input id="flag-pixel" type="checkbox" disabled>
+                            Pixelwise flagged
+                        </label>
+                        <label>
+                            <input id="flag-autoencoder" type="checkbox" disabled>
+                            Autoencoder flagged
+                        </label>
+                    </div>
+
+                    <div class="controls">
+                        <button id="prev-segment">Previous</button>
+                        <button id="next-segment">Next</button>
+                        <button id="mark-damaged" class="danger">Mark Damaged</button>
+                        <button id="mark-ok" class="safe">Mark OK</button>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="minimap-panel">
+                <div class="minimap-header">
+                    <h2>Segment Map</h2>
+                </div>
+                <div id="minimap-grid" class="minimap-grid" role="grid" aria-label="Segment minimap"></div>
+                <div class="legend">
+                    <span><span class="legend-swatch status-double"></span> Flagged by both</span>
+                    <span><span class="legend-swatch status-pixel"></span> Pixelwise only</span>
+                    <span><span class="legend-swatch status-auto"></span> Autoencoder only</span>
+                    <span><span class="legend-swatch status-ok"></span> OK</span>
+                    <span><span class="legend-swatch status-skipped"></span> Skipped</span>
+                    <span><span class="legend-swatch manual-damaged"></span> Flagged by user</span>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
