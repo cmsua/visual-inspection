@@ -1,7 +1,7 @@
 const DEFAULT_BOARD = "./data/bad_example/aligned_images5.npy";
 
 const COLORS = {
-    pixel: "#ffe8a3",
+    pixel: "#cadef5",
     auto: "#ffd7a3",
     both: "#ffcccc",
     skipped: "#9ba3b3",
@@ -19,9 +19,14 @@ const state = {
         metadata: {},
     },
     damagedSegments: new Set(),
+    visitedSegments: new Set(),
     currentRow: 0,
     currentCol: 0,
+    isRunningInspection: false,
+    isDarkMode: false,
 };
+
+const THEME_STORAGE_KEY = "vi-theme-mode";
 
 // --------------------------------------------------------------------------- //
 // DOM helpers
@@ -35,17 +40,21 @@ const dom = {
     segmentImage: document.getElementById("segment-image"),
     imageLoader: document.getElementById("image-loader"),
     segmentLabel: document.getElementById("segment-label"),
-    prevBtn: document.getElementById("prev-segment"),
-    nextBtn: document.getElementById("next-segment"),
+    navUp: document.getElementById("nav-up"),
+    navDown: document.getElementById("nav-down"),
+    navLeft: document.getElementById("nav-left"),
+    navRight: document.getElementById("nav-right"),
     markDamagedBtn: document.getElementById("mark-damaged"),
     markOkBtn: document.getElementById("mark-ok"),
     flagSkipped: document.getElementById("flag-skipped"),
     flagPixel: document.getElementById("flag-pixel"),
     flagAE: document.getElementById("flag-autoencoder"),
     minimapGrid: document.getElementById("minimap-grid"),
+    themeToggle: document.getElementById("theme-toggle"),
 };
 
 let segmentFetchToken = 0;
+let activeRunToken = 0;
 
 // --------------------------------------------------------------------------- //
 // Networking
@@ -76,11 +85,70 @@ async function fetchJSON(url, options = {}) {
     return response.json();
 }
 
+function applyTheme(isDark) {
+    state.isDarkMode = isDark;
+    document.body.classList.toggle("dark-mode", isDark);
+    if (dom.themeToggle) {
+        dom.themeToggle.setAttribute("aria-pressed", String(isDark));
+    }
+}
+
+function initializeTheme() {
+    try {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY);
+        if (stored === "dark" || stored === "light") {
+            applyTheme(stored === "dark");
+            return;
+        }
+    } catch (error) {
+        console.warn("Unable to access theme preference:", error);
+    }
+
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    applyTheme(prefersDark);
+
+    if (window.matchMedia) {
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        const listener = (event) => {
+            try {
+                if (localStorage.getItem(THEME_STORAGE_KEY)) {
+                    return;
+                }
+            } catch (error) {
+                console.warn("Unable to access theme preference:", error);
+            }
+            applyTheme(event.matches);
+        };
+
+        if (typeof mediaQuery.addEventListener === "function") {
+            mediaQuery.addEventListener("change", listener);
+        } else if (typeof mediaQuery.addListener === "function") {
+            mediaQuery.addListener(listener);
+        }
+    }
+}
+
 // --------------------------------------------------------------------------- //
 // State utilities
 
 function segmentKey(row, col) {
     return `${row},${col}`;
+}
+
+function markVisited(row, col) {
+    state.visitedSegments.add(segmentKey(row, col));
+}
+
+function clearVisited(row, col) {
+    state.visitedSegments.delete(segmentKey(row, col));
+}
+
+function syncVisitedWithDamaged() {
+    for (const key of Array.from(state.visitedSegments)) {
+        if (state.damagedSegments.has(key)) {
+            state.visitedSegments.delete(key);
+        }
+    }
 }
 
 function isSkipped(row, col) {
@@ -99,10 +167,6 @@ function isAEFlagged(row, col) {
 }
 
 function minimapClass(row, col) {
-    if (manualDamaged(row, col)) {
-        return "manual-damaged";
-    }
-
     if (isSkipped(row, col)) {
         return "status-skipped";
     }
@@ -165,10 +229,24 @@ function updateManualControls() {
 }
 
 function updateNavigationButtons() {
-    const linearIndex = state.currentRow * state.grid.cols + state.currentCol;
-    const lastIndex = Math.max(0, totalSegments() - 1);
-    dom.prevBtn.disabled = linearIndex <= 0;
-    dom.nextBtn.disabled = linearIndex >= lastIndex;
+    const { rows, cols } = state.grid;
+    const { currentRow } = state;
+    const disableAll = rows <= 0 || cols <= 0;
+    const total = totalSegments();
+    const index = currentLinearIndex();
+
+    if (dom.navUp) {
+        dom.navUp.disabled = disableAll || currentRow <= 0;
+    }
+    if (dom.navDown) {
+        dom.navDown.disabled = disableAll || currentRow >= rows - 1;
+    }
+    if (dom.navLeft) {
+        dom.navLeft.disabled = disableAll || index <= 0;
+    }
+    if (dom.navRight) {
+        dom.navRight.disabled = disableAll || index >= total - 1;
+    }
 }
 
 function updateMinimapSelection() {
@@ -196,6 +274,11 @@ function updateMinimapGrid() {
         for (let c = 0; c < cols; c += 1) {
             const cell = document.createElement("button");
             cell.className = `segment-cell ${minimapClass(r, c)}`;
+            if (manualDamaged(r, c)) {
+                cell.classList.add("manual-damaged");
+            } else if (state.visitedSegments.has(segmentKey(r, c))) {
+                cell.classList.add("visited-ok");
+            }
             cell.dataset.row = r;
             cell.dataset.col = c;
             cell.type = "button";
@@ -204,6 +287,7 @@ function updateMinimapGrid() {
             cell.textContent = "";
             cell.addEventListener("click", () => {
                 setSegment(r, c);
+                cell.blur();
             });
             dom.minimapGrid.appendChild(cell);
         }
@@ -243,6 +327,7 @@ async function refreshSegmentImage() {
 
 function updateManualDamagedSet(damagedList) {
     state.damagedSegments = new Set(damagedList.map(({ row, col }) => segmentKey(row, col)));
+    syncVisitedWithDamaged();
 }
 
 function renderSegmentState() {
@@ -260,10 +345,22 @@ function updateUIAfterBoardChange() {
 }
 
 function setProgressActive(active) {
-    if (dom.runProgress) {
-        dom.runProgress.classList.toggle("hidden", !active);
-        dom.runProgress.setAttribute("aria-hidden", active ? "false" : "true");
+    if (!dom.runProgress) {
+        return;
     }
+
+    dom.runProgress.classList.toggle("hidden", !active);
+    dom.runProgress.setAttribute("aria-hidden", active ? "false" : "true");
+}
+
+function finalizeInspectionRun(runToken) {
+    if (activeRunToken !== runToken) {
+        return;
+    }
+
+    activeRunToken = 0;
+    state.isRunningInspection = false;
+    setProgressActive(false);
 }
 
 // --------------------------------------------------------------------------- //
@@ -277,76 +374,156 @@ function currentLinearIndex() {
     return state.currentRow * state.grid.cols + state.currentCol;
 }
 
-function setSegmentByIndex(index) {
-    const total = totalSegments();
-    if (total === 0 || state.grid.cols <= 0) {
+function setSegment(row, col) {
+    const { rows, cols } = state.grid;
+    if (rows <= 0 || cols <= 0) {
         return;
     }
-
-    const clamped = Math.min(Math.max(index, 0), total - 1);
-    state.currentRow = Math.floor(clamped / state.grid.cols);
-    state.currentCol = clamped % state.grid.cols;
+    if (row < 0 || row >= rows || col < 0 || col >= cols) {
+        return;
+    }
+    state.currentRow = row;
+    state.currentCol = col;
     renderSegmentState();
 }
 
-function setSegment(row, col) {
-    if (
-        state.grid.cols <= 0 ||
-        row < 0 ||
-        col < 0 ||
-        row >= state.grid.rows ||
-        col >= state.grid.cols
-    ) {
-        return;
-    }
-    const index = row * state.grid.cols + col;
-    setSegmentByIndex(index);
-}
-
-function goToNextSegment() {
+function moveToLinear(index) {
     const total = totalSegments();
-    if (total === 0) {
-        return;
+    if (total <= 0) {
+        return false;
     }
-
-    const current = currentLinearIndex();
-    if (current >= total - 1) {
-        return;
+    if (index < 0 || index >= total) {
+        return false;
     }
-    setSegmentByIndex(current + 1);
+    const cols = state.grid.cols;
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    setSegment(row, col);
+    return true;
 }
 
-function goToPreviousSegment() {
-    const total = totalSegments();
-    if (total === 0) {
-        return;
-    }
-
-    const current = currentLinearIndex();
-    if (current <= 0) {
-        return;
-    }
-    setSegmentByIndex(current - 1);
+function moveNextSegment() {
+    const nextIndex = currentLinearIndex() + 1;
+    return moveToLinear(nextIndex);
 }
 
-async function handleLoadBoard() {
+function movePreviousSegment() {
+    const prevIndex = currentLinearIndex() - 1;
+    return moveToLinear(prevIndex);
+}
+
+function moveUp() {
+    if (state.currentRow <= 0) {
+        return false;
+    }
+    setSegment(state.currentRow - 1, state.currentCol);
+    return true;
+}
+
+function moveDown() {
+    if (state.currentRow >= state.grid.rows - 1) {
+        return false;
+    }
+    setSegment(state.currentRow + 1, state.currentCol);
+    return true;
+}
+
+function moveLeft() {
+    if (currentLinearIndex() === 0) {
+        return false;
+    }
+    return movePreviousSegment();
+}
+
+function moveRight() {
+    if (currentLinearIndex() >= totalSegments() - 1) {
+        return false;
+    }
+    return moveNextSegment();
+}
+
+function advanceAfterLabel() {
+    if (currentLinearIndex() >= totalSegments() - 1) {
+        return;
+    }
+    moveNextSegment();
+}
+
+function handleKeyboardNavigation(event) {
+    const { key } = event;
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key)) {
+        return;
+    }
+
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+    }
+
+    const target = event.target;
+    if (target) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
+            return;
+        }
+    }
+
+    const gridLoaded = state.grid.rows > 0 && state.grid.cols > 0;
+
+    let handled = false;
+    let attempted = false;
+    switch (key) {
+        case "ArrowUp":
+            attempted = true;
+            handled = moveUp();
+            break;
+        case "ArrowDown":
+            attempted = true;
+            handled = moveDown();
+            break;
+        case "ArrowLeft":
+            attempted = true;
+            handled = moveLeft();
+            break;
+        case "ArrowRight":
+            attempted = true;
+            handled = moveRight();
+            break;
+        default:
+            break;
+    }
+
+    if ((attempted && gridLoaded) || handled) {
+        event.preventDefault();
+    }
+}
+
+async function handleLoadBoard(options = {}) {
+    const { showStatus = true } = options;
     const requestedPath = dom.boardPathInput.value.trim() || DEFAULT_BOARD;
     try {
-        dom.runStatus.textContent = "Loading board...";
+        if (showStatus) {
+            dom.runStatus.textContent = "Loading board...";
+        }
         const params = new URLSearchParams({ path: requestedPath });
         const payload = await fetchJSON(`/api/board?${params.toString()}`);
+        const previousBoardPath = state.boardPath;
         state.boardPath = payload.board_path;
         state.grid.rows = payload.grid_shape.rows;
         state.grid.cols = payload.grid_shape.cols;
         state.segmentShape = payload.segment_shape;
         state.inspection = payload.inspection;
         updateManualDamagedSet(payload.damaged_segments);
+        if (previousBoardPath !== state.boardPath) {
+            state.visitedSegments.clear();
+        }
         dom.boardPathInput.value = payload.board_path;
 
         state.currentRow = 0;
         state.currentCol = 0;
         updateUIAfterBoardChange();
-        dom.runStatus.textContent = `Loaded ${payload.board_path}`;
+        if (showStatus && !state.isRunningInspection) {
+            dom.runStatus.textContent = `Loaded ${payload.board_path}`;
+        }
     } catch (error) {
         console.error("Failed to load board:", error);
         dom.runStatus.textContent = `Error loading board: ${error.message ?? error}`;
@@ -354,23 +531,31 @@ async function handleLoadBoard() {
 }
 
 async function handleRunInspection() {
+    const runToken = Date.now();
     try {
         dom.runStatus.textContent = "Running inspection...";
+        activeRunToken = runToken;
+        state.isRunningInspection = true;
         setProgressActive(true);
         const payload = await fetchJSON("/api/run", {
             method: "POST",
             body: JSON.stringify({ path: state.boardPath }),
         });
+        if (activeRunToken !== runToken) {
+            return;
+        }
         const completionMessage = payload.stdout.trim()
             ? `Inspection complete.\n${payload.stdout.trim()}`
             : "Inspection complete.";
-        await handleLoadBoard();
+        await handleLoadBoard({ showStatus: false });
         dom.runStatus.textContent = completionMessage;
+        finalizeInspectionRun(runToken);
     } catch (error) {
-        console.error("Inspection failed:", error);
-        dom.runStatus.textContent = `Inspection failed: ${error.message ?? error}`;
-    } finally {
-        setProgressActive(false);
+        if (activeRunToken === runToken) {
+            console.error("Inspection failed:", error);
+            dom.runStatus.textContent = `Inspection failed: ${error.message ?? error}`;
+            finalizeInspectionRun(runToken);
+        }
     }
 }
 
@@ -386,9 +571,15 @@ async function handleManualLabel(isDamaged) {
                 damaged: isDamaged,
             }),
         });
+        const prevIndex = segmentKey(state.currentRow, state.currentCol);
         updateManualDamagedSet(response.damaged_segments);
+        clearVisited(state.currentRow, state.currentCol);
+        if (!state.damagedSegments.has(prevIndex)) {
+            markVisited(state.currentRow, state.currentCol);
+        }
         updateMinimapGrid();
         renderSegmentState();
+        advanceAfterLabel();
         dom.runStatus.textContent = isDamaged ? "Segment marked as damaged." : "Segment marked as OK.";
     } catch (error) {
         console.error("Failed to persist label:", error);
@@ -408,13 +599,41 @@ function bindEvents() {
         handleRunInspection();
     });
 
-    dom.prevBtn.addEventListener("click", () => {
-        goToPreviousSegment();
-    });
+    if (dom.themeToggle) {
+        dom.themeToggle.addEventListener("click", () => {
+            const next = !state.isDarkMode;
+            applyTheme(next);
+            try {
+                localStorage.setItem(THEME_STORAGE_KEY, next ? "dark" : "light");
+            } catch (error) {
+                console.warn("Unable to store theme preference:", error);
+            }
+        });
+    }
 
-    dom.nextBtn.addEventListener("click", () => {
-        goToNextSegment();
-    });
+    if (dom.navUp) {
+        dom.navUp.addEventListener("click", () => {
+            moveUp();
+        });
+    }
+
+    if (dom.navDown) {
+        dom.navDown.addEventListener("click", () => {
+            moveDown();
+        });
+    }
+
+    if (dom.navLeft) {
+        dom.navLeft.addEventListener("click", () => {
+            moveLeft();
+        });
+    }
+
+    if (dom.navRight) {
+        dom.navRight.addEventListener("click", () => {
+            moveRight();
+        });
+    }
 
     dom.markDamagedBtn.addEventListener("click", () => {
         handleManualLabel(true);
@@ -430,10 +649,14 @@ function bindEvents() {
             handleLoadBoard();
         }
     });
+
+    document.addEventListener("keydown", handleKeyboardNavigation);
 }
 
 // --------------------------------------------------------------------------- //
 // Init
 
+initializeTheme();
 bindEvents();
+updateNavigationButtons();
 handleLoadBoard();

@@ -9,7 +9,19 @@
 <body>
     <div class="app-shell">
         <header class="app-header">
-            <h1>Hexaboard Visual Inspection</h1>
+            <div class="header-top">
+                <h1>Hexaboard Visual Inspection</h1>
+                <div class="theme-toggle">
+                    <span class="theme-toggle-label">Dark Mode</span>
+                    <button id="theme-toggle" type="button" aria-label="Toggle dark mode" aria-pressed="false">
+                        <span class="toggle-track">
+                            <span class="toggle-icon sun">☀</span>
+                            <span class="toggle-icon moon">☾</span>
+                            <span class="toggle-thumb"></span>
+                        </span>
+                    </button>
+                </div>
+            </div>
             <div class="board-loader">
                 <label for="board-path">Board path</label>
                 <input id="board-path" type="text" value="./data/bad_example/aligned_images5.npy" spellcheck="false">
@@ -49,10 +61,17 @@
                     </div>
 
                     <div class="controls">
-                        <button id="prev-segment">Previous</button>
-                        <button id="next-segment">Next</button>
-                        <button id="mark-damaged" class="danger">Mark Damaged</button>
-                        <button id="mark-ok" class="safe">Mark OK</button>
+                        <div class="nav-grid">
+                            <button id="nav-up" type="button" aria-label="Previous row">▲</button>
+                            <div class="nav-spacer" aria-hidden="true"></div>
+                            <button id="nav-left" type="button" aria-label="Previous column">◀</button>
+                            <button id="nav-down" type="button" aria-label="Next row">▼</button>
+                            <button id="nav-right" type="button" aria-label="Next column">▶</button>
+                        </div>
+                        <div class="label-actions">
+                            <button id="mark-damaged" type="button" class="danger">Mark Damaged</button>
+                            <button id="mark-ok" type="button" class="safe">Mark OK</button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -69,6 +88,7 @@
                     <span><span class="legend-swatch status-ok"></span> OK</span>
                     <span><span class="legend-swatch status-skipped"></span> Skipped</span>
                     <span><span class="legend-swatch manual-damaged"></span> Flagged by user</span>
+                    <span><span class="legend-swatch status-ok-visited"></span> OK</span>
                 </div>
             </aside>
         </main>
