@@ -1,0 +1,1 @@
+from .inspection_app import InspectionApp

@@ -6,7 +6,7 @@ import numpy as np
 
 import torch
 
-from src.inferences import autoencoder_inference, pixelwise_inference
+from src.inspection import autoencoder_inference, pixelwise_inference
 from src.models import CNNAutoencoder
 from src.utils import set_seed
 from src.utils.data import load_hexaboard

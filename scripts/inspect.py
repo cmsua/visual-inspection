@@ -1,14 +1,10 @@
 import argparse
 from typing import List
 
-import numpy as np
-
 import torch
 
-from src.inferences import autoencoder_inference, pixelwise_inference
-from src.models import CNNAutoencoder
-from src.utils import InspectionResults, set_seed
-from src.utils.data import load_hexaboard, load_skipped_segments
+from src.inspection import run_inspection
+from src.utils import InspectionResults
 
 
 def parse_args() -> argparse.Namespace:
@@ -19,8 +15,8 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Data loading arguments
-    parser.add_argument('-b', '--baseline-hexaboard-path', type=str, required=True, help="Path to the baseline hexaboard images")
-    parser.add_argument('-n', '--new-hexaboard-path', type=str, required=True, help="Path to the new hexaboard images to inspect")
+    parser.add_argument('-b', '--baseline-hexaboard-path', type=str, required=True, help="Path to the baseline hexaboard")
+    parser.add_argument('-n', '--new-hexaboard-path', type=str, required=True, help="Path to the new hexaboard to inspect")
     parser.add_argument('-s', '--skipped-segments-path', type=str, default='./calibrations/skipped_segments.json', help="Path to the JSON file containing the list of segments to skip")
 
     # Threshold arguments
@@ -51,60 +47,17 @@ def main(
     best_model_path: str = './logs/CNNAutoencoder/best/run_01.pt',
     device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
 ) -> InspectionResults:
-    device = torch.device(device)
-
-    # Reproducibility settings
-    set_seed(42)
-
-    # Load the hexaboard data
-    baseline_hexaboard = load_hexaboard(baseline_hexaboard_path)
-    new_hexaboard = load_hexaboard(new_hexaboard_path)
-    H_seg, V_seg, height, width, channels = baseline_hexaboard.shape
-    segment_shape = (height, width, channels)
-    grid_shape = (H_seg, V_seg)
-
-    # Load the model
-    model = CNNAutoencoder(
-        height=height,
-        width=width,
+    results = run_inspection(
+        baseline_hexaboard_path=baseline_hexaboard_path,
+        new_hexaboard_path=new_hexaboard_path,
+        skipped_segments_path=skipped_segments_path,
+        ae_threshold_path=ae_threshold_path,
+        pw_threshold_path=pw_threshold_path,
         latent_dim=latent_dim,
         init_filters=init_filters,
-        layers=layers
-    ).to(device)
-    model.load_state_dict(torch.load(best_model_path, map_location=device))
-    model.eval()
-
-    # Load the thresholds
-    ae_threshold = np.load(ae_threshold_path)
-    pw_threshold = np.load(pw_threshold_path)
-
-    # Load the skipped segments
-    skipped_segments = load_skipped_segments(skipped_segments_path)
-
-    # Perform inferences
-    ae_indices = autoencoder_inference(
-        hexaboard=new_hexaboard,
-        threshold=ae_threshold,
-        model=model,
-        device=device,
-        skipped_segments=skipped_segments
-    )
-    pw_indices = pixelwise_inference(
-        baseline_hexaboard=baseline_hexaboard,
-        new_hexaboard=new_hexaboard,
-        threshold=pw_threshold,
-        skipped_segments=skipped_segments
-    )
-
-    # Compile the inspection results
-    results = InspectionResults.from_segment_flags(
-        shape=grid_shape,
-        pixel_flagged=pw_indices,
-        autoencoder_flagged=ae_indices,
-        skipped_segments=skipped_segments,
-        baseline_path=baseline_hexaboard_path,
-        inspected_path=new_hexaboard_path,
-        segment_shape=segment_shape
+        layers=layers,
+        best_model_path=best_model_path,
+        device=device
     )
 
     return results
