@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 from torch import nn, Tensor
 from torchvision.models.resnet import BasicBlock

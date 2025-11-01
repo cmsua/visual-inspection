@@ -1,5 +1,5 @@
 import inspect
-from typing import List, Dict
+from typing import Dict, List
 
 from torch import nn
 from torch.nn.modules.loss import _Loss

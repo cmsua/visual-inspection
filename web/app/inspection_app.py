@@ -7,8 +7,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from src.utils.data import JSONStore, load_hexaboard, load_skipped_segments
-
+from ..cache import InspectionCache
 from ..configs import (
     AE_THRESHOLD_PATH,
     BASELINE_BOARD_PATH,
@@ -17,9 +16,9 @@ from ..configs import (
     SKIPPED_SEGMENTS_PATH,
     REPO_ROOT
 )
-from ..cache import InspectionCache
 from ..utils import encode_png, repo_relative, to_wsl_path
-from scripts import inspect as inspect_script
+from src.inspection import run_inspection
+from src.utils.data import JSONStore, load_hexaboard, load_skipped_segments
 
 
 class InspectionApp:
@@ -34,11 +33,11 @@ class InspectionApp:
         with self._lock:
             cached = self._board_cache.get(board_path)
             mtime = board_path.stat().st_mtime
-            if cached and cached["mtime"] >= mtime:
-                return cached["array"]
+            if cached and cached['mtime'] >= mtime:
+                return cached['array']
 
             array = load_hexaboard(str(board_path), normalize=False)
-            self._board_cache[board_path] = {"array": array, "mtime": mtime}
+            self._board_cache[board_path] = {'array': array, 'mtime': mtime}
             return array
 
     @staticmethod
@@ -69,7 +68,7 @@ class InspectionApp:
     def get_inspection(self, board_path: Path, force: bool = False) -> InspectionCache:
         with self._lock:
             if force or self._needs_refresh(board_path):
-                inspection = inspect_script.main(
+                inspection = run_inspection(
                     baseline_hexaboard_path=str(BASELINE_BOARD_PATH),
                     new_hexaboard_path=str(board_path),
                     skipped_segments_path=str(SKIPPED_SEGMENTS_PATH),
@@ -94,7 +93,7 @@ class InspectionApp:
         board_id = self._board_identifier(board_path)
         self._json_store.ensure_file_entry(board_id, shape)
         damaged = self._json_store.get_damaged_set(board_id)
-        return [{"row": int(r), "col": int(c)} for (r, c) in sorted(damaged)]
+        return [{'row': int(r), 'col': int(c)} for (r, c) in sorted(damaged)]
 
     def update_damaged_label(self, board_path: Path, shape: Tuple[int, ...], row: int, col: int, is_damaged: bool) -> None:
         board_id = self._board_identifier(board_path)
@@ -117,13 +116,13 @@ class InspectionApp:
         skipped_segments = load_skipped_segments(str(SKIPPED_SEGMENTS_PATH))
 
         payload = {
-            "board_path": repo_relative(board_path),
-            "baseline_path": repo_relative(BASELINE_BOARD_PATH),
-            "grid_shape": {"rows": H, "cols": W},
-            "segment_shape": {"height": height, "width": width, "channels": channels},
-            "damaged_segments": self.get_damaged_labels(board_path, array.shape),
-            "skipped_segments": [{"row": int(r), "col": int(c)} for (r, c) in sorted(skipped_segments)],
-            "inspection": inspection.as_payload(),
+            'board_path': repo_relative(board_path),
+            'baseline_path': repo_relative(BASELINE_BOARD_PATH),
+            'grid_shape': {'rows': H, 'cols': W},
+            'segment_shape': {'height': height, 'width': width, 'channels': channels},
+            'damaged_segments': self.get_damaged_labels(board_path, array.shape),
+            'skipped_segments': [{'row': int(r), 'col': int(c)} for (r, c) in sorted(skipped_segments)],
+            'inspection': inspection.as_payload()
         }
 
         return payload
@@ -138,17 +137,17 @@ class InspectionApp:
         image_str = encode_png(segment)
 
         return {
-            "board_path": repo_relative(board_path),
-            "row": int(row),
-            "col": int(col),
-            "image": image_str,
+            'board_path': repo_relative(board_path),
+            'row': int(row),
+            'col': int(col),
+            'image': image_str,
         }
 
     def run_inspection_job(self, board_path: Path) -> subprocess.CompletedProcess:
-        script_path = to_wsl_path(REPO_ROOT / "jobs" / "main.sh")
+        script_path = to_wsl_path(REPO_ROOT / 'jobs' / 'main.sh')
         board_arg = to_wsl_path(board_path)
         process = subprocess.run(
-            ["bash", script_path, board_arg],
+            ['bash', script_path, board_arg],
             capture_output=True,
             text=True,
             check=False,

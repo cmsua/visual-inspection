@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from http.server import ThreadingHTTPServer
 
+from .handlers import InspectionRequestHandler
 from ..app import InspectionApp
 from ..configs import INTERFACE_DIR
-from .handlers import InspectionRequestHandler
 
 
 def run_server(host: str = '127.0.0.1', port: int = 3000) -> None:

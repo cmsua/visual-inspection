@@ -1,7 +1,7 @@
-import os
 import csv
-from typing import List, Tuple, Dict, Callable, Optional, Union
+import os
 from datetime import datetime
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from tqdm.auto import tqdm

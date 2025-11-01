@@ -1,6 +1,6 @@
 import json
-from typing import List, Tuple, Optional
 from collections import defaultdict
+from typing import List, Optional, Tuple
 
 import numpy as np
 from skimage.metrics import structural_similarity as ssim

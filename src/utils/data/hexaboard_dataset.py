@@ -1,5 +1,5 @@
-from typing import Callable, Optional, Union
 from pathlib import Path
+from typing import Callable, Optional, Union
 
 import numpy as np
 

@@ -1,5 +1,5 @@
-from typing import Dict, Optional, Callable
 from collections import defaultdict
+from typing import Callable, Dict, Optional
 
 import torch
 from torch.optim.optimizer import Optimizer
