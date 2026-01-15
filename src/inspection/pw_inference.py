@@ -16,11 +16,11 @@ def pixelwise_inference(
 
     Parameters
     ----------
-    baseline_hexaboard : np.ndarray
+    baseline_hexaboard: np.ndarray
         5D array with shape (H_seg, V_seg, height, width, num_channels) representing the baseline hexaboard.
-    new_hexaboard : np.ndarray
+    new_hexaboard: np.ndarray
         5D array with shape (H_seg, V_seg, height, width, num_channels) representing the new hexaboard to compare.
-    threshold : float
+    threshold: np.ndarray
         The SSIM threshold below which segments are flagged.
     skipped_segments: Set[Tuple[int, int]], optional
         A set of (H_seg, V_seg) tuples representing the segments to skip.
@@ -37,16 +37,10 @@ def pixelwise_inference(
     flagged_segments = []
     if skipped_segments is None:
         skipped_segments = {
-            (0, 0), (0, 1), (0, 7), (0, 8),
-            (1, 0), (1, 8),
-            (2, 0), (2, 8),
-            (3, 0), (3, 8),
-            (4, 0), (4, 8),
-            (8, 0), (8, 8),
-            (9, 0), (9, 8),
-            (10, 0), (10, 1), (10, 7), (10, 8),
-            (11, 0), (11, 1), (11, 8),
-            (12, 0), (12, 1), (12, 7), (12, 8)
+            # (0, 0), (0, 4),
+            # (1, 0), (1, 4),
+            # (6, 0), (6, 4),
+            # (7, 0), (7, 4)
         }
 
     # Loop over all horizontal and vertical segments

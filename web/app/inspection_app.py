@@ -38,6 +38,7 @@ class InspectionApp:
 
             array = load_hexaboard(str(board_path), normalize=False)
             self._board_cache[board_path] = {'array': array, 'mtime': mtime}
+            
             return array
 
     @staticmethod
@@ -85,6 +86,7 @@ class InspectionApp:
                     skipped_mtime=SKIPPED_SEGMENTS_PATH.stat().st_mtime,
                 )
                 self._inspection_cache[board_path] = cache_entry
+
                 return cache_entry
 
             return self._inspection_cache[board_path]
@@ -93,6 +95,7 @@ class InspectionApp:
         board_id = self._board_identifier(board_path)
         self._json_store.ensure_file_entry(board_id, shape)
         damaged = self._json_store.get_damaged_set(board_id)
+
         return [{'row': int(r), 'col': int(c)} for (r, c) in sorted(damaged)]
 
     def update_damaged_label(self, board_path: Path, shape: Tuple[int, ...], row: int, col: int, is_damaged: bool) -> None:

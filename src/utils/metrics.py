@@ -19,7 +19,7 @@ def accuracy_metric_bce(outputs: Tensor, target: Tensor) -> float:
 
 
 def accuracy_metric_ce(pred: Tensor, target: Tensor) -> float:
-    r"""
+    """
     Accuracy for multi-class classification (using CrossEntropyLoss).
     """
     pred_class = pred.argmax(dim=1)

@@ -1,40 +1,21 @@
-import random
 from PIL import Image
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def visualize_segments(
+def visualize_segment(
     data: np.ndarray,
-    num_samples: int = 4,
-    randomize: bool = True
+    H_seg: int,
+    V_seg: int
 ) -> None:
-    H_seg, V_seg, _, _, _ = data.shape
-
-    # Pick indices to show
-    if randomize:
-        indices = [
-            (random.randrange(H_seg), random.randrange(V_seg))
-            for _ in range(num_samples)
-        ]
-    else:
-        corners = [
-            (0, 0),
-            (0, V_seg - 1),
-            (H_seg - 1, 0),
-            (H_seg - 1, V_seg - 1),
-        ]
-        indices = corners[:num_samples]
-
-    for _, (h_idx, v_idx) in enumerate(indices, 1):
-        seg = data[h_idx, v_idx]  # (height, width, num_channels)
-        img = Image.fromarray(seg.astype('uint8'))
-        plt.imshow(img)
-        plt.axis('off')
-        plt.tight_layout()
-        plt.show()
+    seg = data[H_seg, V_seg]  # (height, width, num_channels)
+    img = Image.fromarray(seg.astype('uint8'))
+    plt.imshow(img)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
 
 
 def plot_history(history: Dict[str, List[float]], save_fig: Optional[str] = None) -> None:

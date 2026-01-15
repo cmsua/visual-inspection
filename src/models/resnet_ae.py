@@ -25,15 +25,15 @@ class ResNetAutoencoder(nn.Module):
         ----------
         config: AutoencoderConfig, optional
             Configuration object containing model parameters.
-        height : int, optional
+        height: int, optional
             Height of the input images.
-        width : int, optional
+        width: int, optional
             Width of the input images.
-        latent_dim : int, optional
+        latent_dim: int, optional
             Dimension of the latent (bottleneck) vector.
-        init_filters : int, optional
+        init_filters: int, optional
             Number of filters in the first convolutional layer (stem).
-        layers : List[int], optional
+        layers: List[int], optional
             Number of BasicBlocks in each encoder stage.
         """
         super().__init__()
@@ -46,8 +46,8 @@ class ResNetAutoencoder(nn.Module):
             self.init_filters = init_filters if init_filters is not None else config.init_filters
             self.layers = layers if layers is not None else config.layers
         else:
-            self.height = height if height is not None else 1016
-            self.width = width if width is not None else 1640
+            self.height = height if height is not None else 1080
+            self.width = width if width is not None else 1920
             self.latent_dim = latent_dim if latent_dim is not None else 32
             self.init_filters = init_filters if init_filters is not None else 128
             self.layers = layers if layers is not None else [2, 2, 2]

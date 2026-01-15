@@ -127,7 +127,7 @@ def array_to_pil(img: np.ndarray) -> Image.Image:
     elif img.ndim == 2:
         arr = normalize_to_uint8(img)
 
-        return Image.fromarray(arr, mode="L")
+        return Image.fromarray(arr, mode='L')
     else:
         raise ValueError(f"Unexpected image shape for display: {img.shape}")
 
@@ -148,7 +148,7 @@ def fit_image_to_max_side(pil_img: Image.Image, max_side: int) -> Image.Image:
 
 def pil_to_png_bytes(pil_img: Image.Image) -> bytes:
     with io.BytesIO() as bio:
-        pil_img.save(bio, format="PNG")
+        pil_img.save(bio, format='PNG')
         return bio.getvalue()
 
 
@@ -183,7 +183,7 @@ class NotebookDamagedLabeler:
         if start_row is not None and start_col is not None:
             self.idx = int(start_row) * self.C + int(start_col)
         elif cp is not None:
-            self.idx = int(cp.get("index", 0))
+            self.idx = int(cp.get('index', 0))
         else:
             self.idx = 0
 

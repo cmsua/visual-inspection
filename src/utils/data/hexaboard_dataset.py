@@ -26,11 +26,11 @@ class HexaboardDataset(Dataset):
 
     Parameters
     ----------
-    root : str or Path
+    root: str or Path
         Root directory path containing .npy files, or a single .npy file path for backward compatibility.
     skipped_segments_path: str, optional
         Path to the JSON file containing the list of segments to skip.
-    transform : Callable, optional
+    transform: Callable, optional
         A function/transformation that takes in a numpy array of shape
         (height, width, num_channels) and returns a torch.Tensor of shape (num_channels, height, width).
         E.g. `transforms.ToTensor()`.
@@ -66,16 +66,16 @@ class HexaboardDataset(Dataset):
 
         # Default skip set
         default_skipped = {
-            (0, 0), (0, 1), (0, 7), (0, 8),
-            (1, 0), (1, 8),
-            (2, 0), (2, 8),
-            (3, 0), (3, 8),
-            (4, 0), (4, 8),
-            (8, 0), (8, 8),
-            (9, 0), (9, 8),
-            (10, 0), (10, 1), (10, 7), (10, 8),
-            (11, 0), (11, 1), (11, 8),
-            (12, 0), (12, 1), (12, 7), (12, 8)
+            # (0, 0), (0, 1), (0, 7), (0, 8),
+            # (1, 0), (1, 8),
+            # (2, 0), (2, 8),
+            # (3, 0), (3, 8),
+            # (4, 0), (4, 8),
+            # (8, 0), (8, 8),
+            # (9, 0), (9, 8),
+            # (10, 0), (10, 1), (10, 7), (10, 8),
+            # (11, 0), (11, 1), (11, 8),
+            # (12, 0), (12, 1), (12, 7), (12, 8)
         }
         self.skipped_segments = load_skipped_segments(skipped_segments_path) if skipped_segments_path is not None else default_skipped
         

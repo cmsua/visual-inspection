@@ -17,13 +17,13 @@ def plot_reconstructions(
 
     Parameters
     ----------
-    y_true : np.ndarray
+    y_true: np.ndarray
         Array of shape (N, C, H, W) containing original images.
-    y_pred : np.ndarray
+    y_pred: np.ndarray
         Array of shape (N, C, H, W) containing reconstructed images.
-    num_images : int, optional
+    num_images: int, optional
         Number of image pairs to display (default: 8).
-    title : str, optional
+    title: str, optional
         Title for the visualization (default: "Testing Dataset").
     """
     # Clip num_images to available samples
