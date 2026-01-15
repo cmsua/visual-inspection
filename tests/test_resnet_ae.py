@@ -15,8 +15,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 @pytest.fixture
 def config() -> Tuple:
     input_channels = 3
-    height = 1016
-    width = 1640
+    height = 1080
+    width = 1920
     latent_dim = 128
     init_filters = 32
     layers = [2, 2, 2]
