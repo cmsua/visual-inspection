@@ -20,7 +20,7 @@ This project implements an automated visual inspection system that combines:
 
 ### Prerequisites
 
-- Python 3.13 or higher
+- Python 3.14 or higher
 - Git
 
 ### Installation
