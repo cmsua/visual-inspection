@@ -7,11 +7,12 @@ A deep learning-based visual inspection system for detecting defects in hexaboar
 The High Granularity Calorimeter (HGCAL) is a key component of the CMS detector upgrade for the High Luminosity Large Hadron Collider (HL-LHC). HGCAL consists of silicon sensors arranged in hexagonal modules called hexaboards, which provide unprecedented spatial resolution for particle detection in the forward region of the CMS detector.
 
 ![Cutaway diagram of CMS detector (retrieved from https://cds.cern.ch/record/2665537/files/)](assets/cms_160312_02.png)
-*Cutaway diagram of CMS detector (retrieved from https://cds.cern.ch/record/2665537/files/)*
+*Cutaway diagram of CMS detector (retrieved from <https://cds.cern.ch/record/2665537/files/>)*
 
 Hexaboards are critical silicon sensor modules that form the active detection layers of the HGCAL endcap calorimeter. These hexagonal-shaped boards contain arrays of silicon pad sensors that measure the energy deposits from electromagnetic and hadronic showers. Each hexaboard must meet strict quality standards, as defects can significantly impact the detector's performance in measuring particle energies and positions with high precision.
 
 This project implements an automated visual inspection system that combines:
+
 - **Autoencoder-based anomaly detection**: A convolutional autoencoder trained on reference images to detect reconstruction anomalies
 - **Pixel-wise comparison**: Traditional image comparison using Structural Similarity Index Measure (SSIM) between baseline and test images
 - **Dual flagging system**: Segments are classified as defective if flagged by either or both methods, providing comprehensive defect detection
@@ -26,12 +27,14 @@ This project implements an automated visual inspection system that combines:
 ### Installation
 
 1. **Clone the repository:**
+
     ```bash
     git clone <repository-url>
     cd visual-inspection
     ```
 
 2. **Create and activate a virtual environment:**
+
     ```bash
     python -m venv venv
 
@@ -43,13 +46,14 @@ This project implements an automated visual inspection system that combines:
     ```
 
 3. **Install dependencies:**
+
     ```bash
     pip install -r requirements.txt
     ```
 
 4. **Install PyTorch (GPU or CPU):**
 
-    See: https://pytorch.org/get-started/locally/
+    See: <https://pytorch.org/get-started/locally/>
 
 ## Train/Evaluate the Autoencoder
 
@@ -79,6 +83,7 @@ python -m scripts.train \
 ```
 
 **Key training arguments:**
+
 - `--config-path`: Path to the YAML training config (default: `./configs/train_CNNAutoencoder.yaml`)
 - `--checkpoint-path`: Optional checkpoint to resume training from (default: `None`)
 - `--train-data-dir`: Folder containing training hexaboard `.npy` files (default: `./data/train`)
@@ -103,6 +108,7 @@ python -m scripts.evaluate \
 ```
 
 **Key evaluation arguments:**
+
 - `--config-path`: Path to the YAML config used to build the model (default: `./configs/train_CNNAutoencoder.yaml`)
 - `--best-model-path`: Path to the trained model weights (default: `./logs/CNNAutoencoder/best/run_01.pt`)
 - `--good-hexaboard-dir`: Folder containing a good hexaboard (default: `./data/test`)
@@ -131,6 +137,7 @@ python -m scripts.calibrate \
 ```
 
 **Key Calibration Arguments:**
+
 - `--train-data-dir`, `--val-data-dir`, `--test-data-dir`: Folders with good hexaboards
 - `-j`: JSON map of damaged segments (default: `./calibrations/damaged_segments.json`)
 - `-s`: JSON file listing segments to skip (default: `./calibrations/skipped_segments.json`)
@@ -161,6 +168,7 @@ python -m scripts.analyze \
 ```
 
 **Key Analysis Arguments:**
+
 - `--train-data-dir`, `--val-data-dir`, `--test-data-dir`: Folders with good hexaboards
 - `--bad-data-dir`: Folder with bad hexaboards
 - `-j`: JSON map of damaged segments (default: `./calibrations/damaged_segments.json`)
@@ -195,10 +203,12 @@ python -m scripts.inspect \
 ### Command-line Arguments
 
 **Required Arguments:**
+
 - `-b, --baseline-hexaboard-path`: Path to baseline hexaboard images (.npy file)
 - `-n, --new-hexaboard-path`: Path to new hexaboard images to inspect (.npy file)
 
 **Optional Arguments:**
+
 - `-s`: JSON file listing segments to skip (default: `./calibrations/skipped_segments.json`)
 - `--ae-threshold-path`: Path to autoencoder per-segment threshold `.npy` (default: `./calibrations/ae_threshold.npy`)
 - `--pw-threshold-path`: Path to pixel-wise per-segment threshold `.npy` (default: `./calibrations/pw_threshold.npy`)
@@ -211,11 +221,13 @@ python -m scripts.inspect \
 ### Expected Input Format
 
 The input `.npy` files should contain hexaboard image arrays with shape:
-```
+
+```python
 (H_seg, V_seg, height, width, num_channels)
 ```
 
 Where:
+
 - `H_seg`: Number of horizontal segments (`13`)
 - `V_seg`: Number of vertical segments (`9`)
 - `height, width`: Pixel dimensions of each segment `(1016, 1640)`
@@ -231,7 +243,7 @@ python -m pytest tests/ -v
 
 ## Project Structure
 
-```
+```markdown
 visual-inspection/
 ├── src/
 │   ├── configs/           # Configuration modules

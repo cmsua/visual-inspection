@@ -1,0 +1,3183 @@
+{
+    "checkpoints": {
+        "/content/drive/MyDrive/visual-inspection/data/320XLF4CQH00392_images.npy": {
+            "col": 3,
+            "index": 27,
+            "row": 6
+        },
+        "data/bad/320XLF4CQH00008.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00012.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00014.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00021.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00022.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00023.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00024.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00025.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00029.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/bad/320XLF4CQH00033.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/bad/320XLF4CQH00035.npy": {
+            "col": 4,
+            "index": 9,
+            "row": 1
+        },
+        "data/bad/320XLF4CQH00036.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00037.npy": {
+            "col": 4,
+            "index": 9,
+            "row": 1
+        },
+        "data/bad/320XLF4CQH00038.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00039.npy": {
+            "col": 4,
+            "index": 19,
+            "row": 3
+        },
+        "data/bad/320XLF4CQH00041.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/bad/320XLF4CQH00042.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/bad/320XLF4CQH00044.npy": {
+            "col": 0,
+            "index": 25,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00047.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00048.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00059.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00060.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00061.npy": {
+            "col": 4,
+            "index": 19,
+            "row": 3
+        },
+        "data/bad/320XLF4CQH00063.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00064.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00067.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00069.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/bad/320XLF4CQH00070.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00071.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00072.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00084.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00085.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00086.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00215.npy": {
+            "col": 0,
+            "index": 20,
+            "row": 4
+        },
+        "data/bad/320XLF4CQH00296.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/bad/320XLF4CQH00303.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/bad/320XLF4CQH00389.npy": {
+            "col": 4,
+            "index": 9,
+            "row": 1
+        },
+        "data/bad/320XLF4CQH00391.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00396.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00404.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/bad/320XLF4CQH00405.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00406.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00409.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00410.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00411.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00413.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00417.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/bad/320XLF4CQH00418.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00420.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00421.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00426.npy": {
+            "col": 1,
+            "index": 26,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00428.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00429.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00430.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00432.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00438.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00441.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00443.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/bad/320XLF4CQH00445.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/train/320XLF4CQH00001.npy": {
+            "col": 4,
+            "index": 9,
+            "row": 1
+        },
+        "data/train/320XLF4CQH00002.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00004.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00007.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00010.npy": {
+            "col": 4,
+            "index": 9,
+            "row": 1
+        },
+        "data/train/320XLF4CQH00011.npy": {
+            "col": 4,
+            "index": 4,
+            "row": 0
+        },
+        "data/train/320XLF4CQH00013.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00015.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00016.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00017.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00018.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00019.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00020.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00026.npy": {
+            "col": 1,
+            "index": 21,
+            "row": 4
+        },
+        "data/train/320XLF4CQH00028.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00030.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00031.npy": {
+            "col": 4,
+            "index": 4,
+            "row": 0
+        },
+        "data/train/320XLF4CQH00032.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/train/320XLF4CQH00034.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00043.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/train/320XLF4CQH00045.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/train/320XLF4CQH00046.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/train/320XLF4CQH00065.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00066.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00068.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00073.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00074.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/train/320XLF4CQH00077.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/train/320XLF4CQH00081.npy": {
+            "col": 1,
+            "index": 16,
+            "row": 3
+        },
+        "data/train/320XLF4CQH00082.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00083.npy": {
+            "col": 4,
+            "index": 34,
+            "row": 6
+        },
+        "data/train/320XLF4CQH00122.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00209.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00297.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00302.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00384.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00386.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00387.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00388.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00390.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00393.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00394.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00395.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00398.npy": {
+            "col": 1,
+            "index": 26,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00399.npy": {
+            "col": 4,
+            "index": 24,
+            "row": 4
+        },
+        "data/train/320XLF4CQH00400.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00402.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00403.npy": {
+            "col": 1,
+            "index": 21,
+            "row": 4
+        },
+        "data/train/320XLF4CQH00408.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00414.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00415.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00416.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00419.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00422.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00423.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00425.npy": {
+            "col": 1,
+            "index": 21,
+            "row": 4
+        },
+        "data/train/320XLF4CQH00427.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00439.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00442.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00451.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00481.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00517.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00519.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        },
+        "data/train/320XLF4CQH00536.npy": {
+            "col": 4,
+            "index": 29,
+            "row": 5
+        }
+    },
+    "files": {
+        "/content/drive/MyDrive/visual-inspection/data/320XLF4CQH00392_images.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "/content/drive/MyDrive/visual-inspection/data/320XLF4CQH00392_images.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00008.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 0,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00008.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00012.npy": {
+            "damaged": [
+                {
+                    "col": 0,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00012.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00014.npy": {
+            "damaged": [
+                {
+                    "col": 0,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00014.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00021.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00021.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00022.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 1,
+                    "row": 5
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00022.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00023.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 0
+                },
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 6
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00023.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00024.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00024.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00025.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 0
+                },
+                {
+                    "col": 2,
+                    "row": 0
+                },
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 0,
+                    "row": 4
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00025.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00029.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00029.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00033.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 6
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00033.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00035.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00035.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00036.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00036.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00037.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 1
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00037.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00038.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 0
+                },
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 1,
+                    "row": 3
+                },
+                {
+                    "col": 3,
+                    "row": 3
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00038.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00039.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 3
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 1,
+                    "row": 5
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                },
+                {
+                    "col": 3,
+                    "row": 6
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                },
+                {
+                    "col": 3,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00039.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00041.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 3,
+                    "row": 6
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                },
+                {
+                    "col": 3,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00041.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00042.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 6
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                },
+                {
+                    "col": 3,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00042.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00044.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 0
+                },
+                {
+                    "col": 2,
+                    "row": 0
+                },
+                {
+                    "col": 3,
+                    "row": 0
+                },
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 0,
+                    "row": 2
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 3
+                },
+                {
+                    "col": 3,
+                    "row": 3
+                },
+                {
+                    "col": 0,
+                    "row": 4
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 4,
+                    "row": 4
+                },
+                {
+                    "col": 0,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 5
+                },
+                {
+                    "col": 2,
+                    "row": 5
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 6
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                },
+                {
+                    "col": 3,
+                    "row": 6
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                },
+                {
+                    "col": 3,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00044.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00047.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 0
+                },
+                {
+                    "col": 2,
+                    "row": 0
+                },
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 3
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 0,
+                    "row": 4
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 2,
+                    "row": 5
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                },
+                {
+                    "col": 3,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00047.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00048.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 3
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00048.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00059.npy": {
+            "damaged": [
+                {
+                    "col": 0,
+                    "row": 3
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00059.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00060.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 0
+                },
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 3
+                },
+                {
+                    "col": 3,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 1,
+                    "row": 5
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 6
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00060.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00061.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 0
+                },
+                {
+                    "col": 2,
+                    "row": 0
+                },
+                {
+                    "col": 3,
+                    "row": 0
+                },
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 0,
+                    "row": 2
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 3
+                },
+                {
+                    "col": 3,
+                    "row": 3
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 0,
+                    "row": 4
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 0,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 5
+                },
+                {
+                    "col": 2,
+                    "row": 5
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 6
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                },
+                {
+                    "col": 3,
+                    "row": 6
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                },
+                {
+                    "col": 3,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00061.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00063.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 0
+                },
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 3
+                },
+                {
+                    "col": 3,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 0,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 5
+                },
+                {
+                    "col": 2,
+                    "row": 5
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                },
+                {
+                    "col": 1,
+                    "row": 6
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                },
+                {
+                    "col": 3,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00063.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00064.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00064.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00067.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00067.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00069.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 4
+                },
+                {
+                    "col": 2,
+                    "row": 5
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                },
+                {
+                    "col": 2,
+                    "row": 6
+                },
+                {
+                    "col": 3,
+                    "row": 6
+                },
+                {
+                    "col": 2,
+                    "row": 7
+                },
+                {
+                    "col": 3,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00069.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00070.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 2
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00070.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00071.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 2
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00071.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00072.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 1
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00072.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00084.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 2
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00084.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00085.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 1
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00085.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00086.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00086.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00215.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 3
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00215.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00296.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00296.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00303.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00303.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00389.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00389.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00391.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 7
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00391.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00396.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00396.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00404.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 1
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00404.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00405.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 2
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00405.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00406.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00406.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00409.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00409.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00410.npy": {
+            "damaged": [
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00410.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00411.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 3
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00411.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00413.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00413.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00417.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00417.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00418.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00418.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00420.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00420.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00421.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00421.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00426.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00426.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00428.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00428.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00429.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00429.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00430.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00430.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00432.npy": {
+            "damaged": [
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00432.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00438.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 0,
+                    "row": 4
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00438.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00441.npy": {
+            "damaged": [
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 3
+                },
+                {
+                    "col": 2,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00441.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00443.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 2,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 1
+                },
+                {
+                    "col": 1,
+                    "row": 2
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 4,
+                    "row": 2
+                },
+                {
+                    "col": 0,
+                    "row": 3
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00443.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/bad/320XLF4CQH00445.npy": {
+            "damaged": [
+                {
+                    "col": 1,
+                    "row": 1
+                },
+                {
+                    "col": 3,
+                    "row": 2
+                },
+                {
+                    "col": 1,
+                    "row": 4
+                },
+                {
+                    "col": 3,
+                    "row": 5
+                }
+            ],
+            "file_id": "data/bad/320XLF4CQH00445.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00001.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00001.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00002.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00002.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00004.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00004.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00007.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00007.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00010.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00010.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00011.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00011.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00013.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00013.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00015.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00015.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00016.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00016.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00017.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00017.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00018.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00018.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00019.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00019.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00020.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00020.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00026.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00026.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00028.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00028.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00030.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00030.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00031.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00031.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00032.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00032.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00034.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00034.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00043.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00043.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00045.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00045.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00046.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00046.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00065.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00065.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00066.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00066.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00068.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00068.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00073.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00073.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00074.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00074.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00077.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00077.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00081.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00081.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00082.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00082.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00083.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00083.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00122.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00122.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00209.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00209.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00297.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00297.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00302.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00302.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00384.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00384.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00386.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00386.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00387.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00387.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00388.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00388.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00390.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00390.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00393.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00393.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00394.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00394.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00395.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00395.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00398.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00398.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00399.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00399.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00400.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00400.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00402.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00402.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00403.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00403.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00408.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00408.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00414.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00414.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00415.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00415.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00416.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00416.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00419.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00419.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00422.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00422.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00423.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00423.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00425.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00425.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00427.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00427.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00439.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00439.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00442.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00442.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00451.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00451.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00481.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00481.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00517.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00517.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00519.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00519.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        },
+        "data/train/320XLF4CQH00536.npy": {
+            "damaged": [],
+            "file_id": "data/train/320XLF4CQH00536.npy",
+            "shape": [
+                8,
+                5,
+                1080,
+                1920,
+                3
+            ]
+        }
+    },
+    "version": 1
+}
