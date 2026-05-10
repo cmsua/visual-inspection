@@ -53,7 +53,7 @@ def main(
     set_seed(42)
 
     # Load the baseline hexaboard to get image dimensions
-    baseline_hexaboard = load_hexaboard(os.path.join(train_data_dir, 'aligned_images1.npy'))
+    baseline_hexaboard = load_hexaboard(os.path.join(train_data_dir, '320XLF4CQH00001.npy'))
     _, _, height, width, _ = baseline_hexaboard.shape
     
     # Load the model
@@ -71,7 +71,7 @@ def main(
     good_hexaboard_paths = []
     for data_dir in [train_data_dir, val_data_dir, test_data_dir]:
         for filename in os.listdir(data_dir):
-            if filename != 'aligned_images1.npy':
+            if filename != '320XLF4CQH00001.npy':
                 good_hexaboard_paths.append(os.path.join(data_dir, filename))
 
     # Calibrate metrics and get thresholds

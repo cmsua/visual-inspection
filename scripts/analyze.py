@@ -63,7 +63,7 @@ def main(
     set_seed(42)
 
     # Load the baseline hexaboard to get image dimensions
-    baseline_hexaboard = load_hexaboard(os.path.join(train_data_dir, 'aligned_images1.npy'))
+    baseline_hexaboard = load_hexaboard(os.path.join(train_data_dir, '320XLF4CQH00001.npy'))
     H_seg, V_seg, height, width, _ = baseline_hexaboard.shape
 
     # Load the model
@@ -88,7 +88,7 @@ def main(
     good_hexaboard_paths = []
     for data_dir in [train_data_dir, val_data_dir, test_data_dir]:
         for filename in os.listdir(data_dir):
-            if filename != 'aligned_images1.npy':
+            if filename != '320XLF4CQH00001.npy':
                 good_hexaboard_paths.append(os.path.join(data_dir, filename))
 
     # List of paths for all bad hexaboards
@@ -194,7 +194,7 @@ def main(
         ae_cm=ae_cm,
         pw_cm=pw_cm,
         double_cm=double_cm,
-        title_prefix="Aggregated over all boards",
+        title="Aggregated over all boards",
         save_fig='./logs/CNNAutoencoder/output/confusion_matrices.png'
     )
 

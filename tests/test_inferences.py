@@ -21,8 +21,8 @@ LOG_DIR = './logs'
 @pytest.fixture
 def config() -> Tuple:
     input_channels = 3
-    height = 1016
-    width = 1640
+    height = 1060
+    width = 1882
     latent_dim = 32
     init_filters = 128
     layers = [2, 2, 2]
@@ -32,13 +32,13 @@ def config() -> Tuple:
 
 @pytest.fixture
 def baseline_hexaboard() -> np.ndarray:
-    return load_hexaboard(os.path.join(DATA_DIR, 'aligned_images1.npy'))
+    return load_hexaboard(os.path.join(DATA_DIR, '320XLF4CQH00001.npy'))
 
 
 @pytest.fixture
 def temp_hexaboard() -> np.ndarray:
     # Create a temporary 5D array with random data
-    temp_data = np.random.rand(13, 9, 100, 100, 3)  # smaller size for faster tests
+    temp_data = np.random.rand(8, 5, 100, 100, 3)  # smaller size for faster tests
 
     return temp_data
 
@@ -95,9 +95,9 @@ def test_identical_autoencoder_inference(baseline_hexaboard: np.ndarray, config:
 
 
 def test_pixelwise_inference_shape_mismatch() -> None:
-    baseline = np.random.rand(13, 9, 100, 100, 3).astype(np.uint8)
-    new = np.random.rand(10, 9, 100, 100, 3).astype(np.uint8)  # different H_seg
-    threshold = np.zeros((13, 9), dtype=float)  # 2D threshold array
+    baseline = np.random.rand(8, 5, 100, 100, 3).astype(np.uint8)
+    new = np.random.rand(7, 5, 100, 100, 3).astype(np.uint8)  # different H_seg
+    threshold = np.zeros((8, 5), dtype=float)  # 2D threshold array
     
     with pytest.raises(ValueError, match="Baseline and new hexaboards must have the same shape."):
         pixelwise_inference(baseline, new, threshold)

@@ -15,8 +15,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 @pytest.fixture
 def config() -> Tuple:
     input_channels = 3
-    height = 1080
-    width = 1920
+    height = 1060
+    width = 1882
     latent_dim = 128
     init_filters = 32
     layers = [2, 2, 2]
@@ -33,7 +33,7 @@ def test_forward_output_shape(config: Tuple) -> None:
         init_filters=init_filters,
         layers=layers
     ).to(device)
-    x = torch.randn(2, in_ch, height, width, device=device)
+    x = torch.randn(1, in_ch, height, width, device=device)
     output = model(x)
 
     # Catch any shape mismatch
@@ -49,7 +49,7 @@ def test_forward_no_nan(config: Tuple) -> None:
         init_filters=init_filters,
         layers=layers
     ).to(device)
-    x = torch.randn(2, in_ch, height, width, device=device)
+    x = torch.randn(1, in_ch, height, width, device=device)
     output = model(x)
 
     # Ensure no NaNs
@@ -67,7 +67,7 @@ def test_training_step(config: Tuple) -> None:
     ).to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    x = torch.randn(2, in_ch, height, width, device=device)
+    x = torch.randn(1, in_ch, height, width, device=device)
     optimizer.zero_grad()
     output = model(x)
     loss = criterion(output, x)
@@ -76,3 +76,18 @@ def test_training_step(config: Tuple) -> None:
 
     # Loss should be a positive scalar
     assert isinstance(loss.item(), float) and loss.item() >= 0
+
+
+def test_bottleneck_geometry(config: Tuple) -> None:
+    _, height, width, latent_dim, init_filters, layers = config
+    model = ResNetAutoencoder(
+        height=height,
+        width=width,
+        latent_dim=latent_dim,
+        init_filters=init_filters,
+        layers=layers
+    ).to(device)
+
+    assert model.bottleneck_area < 160
+    assert model.bottleneck_height > 1 and model.bottleneck_width > 1
+    assert abs((model.bottleneck_height / model.bottleneck_width) - (height / width)) < 0.1

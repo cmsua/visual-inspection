@@ -39,7 +39,7 @@ class HexaboardDataset(Dataset):
     -------
     Tensor
         A tensor of shape (num_channels, height, width) for each segment.
-        E.g. if each board has shape (12, 9, 1016, 1640, 3), then each segment will be of shape (3, 1016, 1640).
+        E.g. if each board has shape (8, 5, 1060, 1882, 3), then each segment will be of shape (3, 1060, 1882).
     """
     def __init__(
         self,
@@ -66,16 +66,10 @@ class HexaboardDataset(Dataset):
 
         # Default skip set
         default_skipped = {
-            # (0, 0), (0, 1), (0, 7), (0, 8),
-            # (1, 0), (1, 8),
-            # (2, 0), (2, 8),
-            # (3, 0), (3, 8),
-            # (4, 0), (4, 8),
-            # (8, 0), (8, 8),
-            # (9, 0), (9, 8),
-            # (10, 0), (10, 1), (10, 7), (10, 8),
-            # (11, 0), (11, 1), (11, 8),
-            # (12, 0), (12, 1), (12, 7), (12, 8)
+            (0, 0), (0, 4),
+            (1, 0), (1, 4),
+            (6, 0), (6, 4),
+            (7, 0), (7, 4),
         }
         self.skipped_segments = load_skipped_segments(skipped_segments_path) if skipped_segments_path is not None else default_skipped
         

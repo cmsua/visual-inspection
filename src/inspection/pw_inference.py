@@ -37,10 +37,10 @@ def pixelwise_inference(
     flagged_segments = []
     if skipped_segments is None:
         skipped_segments = {
-            # (0, 0), (0, 4),
-            # (1, 0), (1, 4),
-            # (6, 0), (6, 4),
-            # (7, 0), (7, 4)
+            (0, 0), (0, 4),
+            (1, 0), (1, 4),
+            (6, 0), (6, 4),
+            (7, 0), (7, 4),
         }
 
     # Loop over all horizontal and vertical segments

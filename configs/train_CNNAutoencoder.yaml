@@ -1,6 +1,6 @@
 model:
-    height: 1080
-    width: 1920
+    height: 1060
+    width: 1882
     latent_dim: 32
     init_filters: 128
     layers: [2, 2, 2]

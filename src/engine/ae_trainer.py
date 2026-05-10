@@ -5,8 +5,9 @@ import numpy as np
 from tqdm.auto import tqdm
 
 import torch
-from torch import nn
-from torch.distributed import all_gather, all_gather_object
+from torch import Tensor, nn
+from torch.distributed import all_gather_object
+from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from .trainer import Trainer
@@ -17,14 +18,82 @@ class AutoencoderTrainer(Trainer):
     """
     Trainer specifically for autoencoder models.
     """
+
+    def _move_batch_to_device(self, batch: Tensor) -> Tensor:
+        return batch.to(self.device, non_blocking=self.pin_memory)
+
+    def _run_epoch(
+        self,
+        loader: DataLoader,
+        training: bool,
+        epoch: int,
+        global_bar: Optional[object] = None,
+        total_steps: Optional[int] = None
+    ) -> Dict[str, float]:
+        if training:
+            self.model.train()
+        else:
+            self.model.eval()
+
+        epoch_state = self._init_epoch_state()
+
+        for batch_idx, batch in enumerate(loader):
+            batch = self._move_batch_to_device(batch)
+            if training:
+                self.optimizer.zero_grad()
+
+            context_manager = torch.enable_grad() if training else torch.no_grad()
+            with context_manager:
+                outputs = self.model(batch)
+                loss = self.criterion(outputs, batch)
+
+                if training:
+                    loss.backward()
+                    self.optimizer.step()
+
+            batch_size = int(batch.size(0))
+            batch_metric = float(self.metric(outputs, batch)) if self.metric else 0.0
+            self._update_epoch_state(
+                epoch_state=epoch_state,
+                batch_size=batch_size,
+                loss=loss,
+                metric_value=batch_metric
+            )
+
+            if training and self.rank == 0 and global_bar is not None and total_steps is not None:
+                reduced_state = self._reduce_epoch_state(epoch_state)
+                step = epoch * len(loader) + batch_idx + 1
+                if step % self.logging_steps == 0 or step == total_steps:
+                    tqdm.write(
+                        f"step: {step}/{total_steps} | "
+                        f"train_loss: {reduced_state['loss']:.4f} | "
+                        f"train_metric: {reduced_state['metric']:.4f}"
+                    )
+
+                global_bar.set_postfix({
+                    'epoch': f'{epoch + 1}/{self.num_epochs}',
+                    'avg_loss': f"{reduced_state['loss']:.4f}",
+                    'avg_metric': f"{reduced_state['metric']:.4f}"
+                })
+                global_bar.update(1)
+
+        return self._reduce_epoch_state(epoch_state)
+
+    def _run_validation_loop(self) -> Dict[str, float]:
+        return self._run_epoch(
+            loader=self.val_loader,
+            training=False,
+            epoch=0
+        )
+
     def train(self) -> Tuple[Dict[str, List[float]], nn.Module]:
+        epoch = self.start_epoch
         try:
-            # Callback before training
-            for cb in self.callbacks:
-                cb.on_train_begin(trainer=self)
+            for callback in self.callbacks:
+                callback.on_train_begin(trainer=self)
 
             total_steps = self.num_epochs * len(self.train_loader)
-            start_step = self.start_epoch * len(self.train_loader)
+            start_step = self._resume_global_step
             if self.progress_bar and self.rank == 0:
                 global_bar = tqdm(
                     total=total_steps,
@@ -34,165 +103,118 @@ class AutoencoderTrainer(Trainer):
                 )
             else:
                 class _NoOpBar:
-                    def set_postfix(self, *args, **kwargs): pass
-                    def update(self, *args, **kwargs): pass
+                    def set_postfix(self, *args, **kwargs):
+                        return None
+
+                    def update(self, *args, **kwargs):
+                        return None
+
                 global_bar = _NoOpBar()
 
             for epoch in range(self.start_epoch, self.num_epochs):
-                # Make DistributedSampler shuffle with a different seed each epoch
                 if self._is_distributed and isinstance(self.train_loader.sampler, DistributedSampler):
                     self.train_loader.sampler.set_epoch(epoch)
 
-                # Callback at the beginning of each epoch
-                for cb in self.callbacks:
-                    cb.on_epoch_begin(epoch, trainer=self)
+                for callback in self.callbacks:
+                    callback.on_epoch_begin(epoch, trainer=self)
 
-                # Training phase
                 self.model.train()
-                running_loss_sum = 0.0
-                running_metric_sum = 0.0
-                running_count = 0
+                if epoch == self.start_epoch and self._resume_batch_offset > 0 and self._resume_epoch_state is not None:
+                    epoch_state = dict(self._resume_epoch_state)
+                else:
+                    epoch_state = self._init_epoch_state()
+                last_eval_step = None
+                should_stop = False
+                resume_batch_offset = self._resume_batch_offset if epoch == self.start_epoch else 0
 
-                for batch_idx, X in enumerate(self.train_loader):
-                    step = epoch * len(self.train_loader) + batch_idx + 1
+                for batch_idx, batch in enumerate(self.train_loader):
+                    if batch_idx < resume_batch_offset:
+                        continue
 
-                    X = X.to(self.device, non_blocking=self.pin_memory)
-
+                    batch = self._move_batch_to_device(batch)
                     self.optimizer.zero_grad()
-                    outputs = self.model(X)
-                    loss = self.criterion(outputs, X)
-                    loss.backward()
-                    self.optimizer.step()
-                    bsz = X.size(0)
-                    running_loss_sum += float(loss.item()) * bsz
 
-                    if self.metric:
-                        running_metric_sum += float(self.metric(outputs, X)) * bsz
+                    with torch.enable_grad():
+                        outputs = self.model(batch)
+                        loss = self.criterion(outputs, batch)
+                        loss.backward()
+                        self.optimizer.step()
 
-                    running_count += bsz
+                    batch_size = int(batch.size(0))
+                    batch_metric = float(self.metric(outputs, batch)) if self.metric else 0.0
+                    self._update_epoch_state(
+                        epoch_state=epoch_state,
+                        batch_size=batch_size,
+                        loss=loss,
+                        metric_value=batch_metric
+                    )
 
-                    avg_loss = running_loss_sum / max(running_count, 1)
-                    avg_metric = running_metric_sum / max(running_count, 1)
-
-                    # Short summary for training
-                    if self.rank == 0:
+                    step = epoch * len(self.train_loader) + batch_idx + 1
+                    if self.rank == 0 and total_steps is not None:
+                        reduced_state = self._reduce_epoch_state(epoch_state)
                         if step % self.logging_steps == 0 or step == total_steps:
                             tqdm.write(
                                 f"step: {step}/{total_steps} | "
-                                f"train_loss: {avg_loss:.4f} | "
-                                f"train_metric: {avg_metric:.4f}"
+                                f"train_loss: {reduced_state['loss']:.4f} | "
+                                f"train_metric: {reduced_state['metric']:.4f}"
                             )
 
                         global_bar.set_postfix({
-                            "epoch": f"{epoch + 1}/{self.num_epochs}",
-                            "avg_loss": f"{avg_loss:.4f}",
-                            "avg_metric": f"{avg_metric:.4f}"
+                            'epoch': f"{epoch + 1}/{self.num_epochs}",
+                            'avg_loss': f"{reduced_state['loss']:.4f}",
+                            'avg_metric': f"{reduced_state['metric']:.4f}"
                         })
 
                     global_bar.update(1)
 
-                # Validation phase
-                self.model.eval()
-                val_loss_sum = 0.0
-                val_metric_sum = 0.0
-                val_count = 0
+                    if self._should_run_step_validation(step=step, total_steps=total_steps):
+                        train_metrics = self._reduce_epoch_state(epoch_state)
+                        val_metrics = self._run_validation_loop()
+                        epoch_progress = epoch + ((batch_idx + 1) / max(len(self.train_loader), 1))
+                        last_logs = self._finalize_validation_event(
+                            epoch_index=epoch,
+                            epoch_progress=epoch_progress,
+                            global_step=step,
+                            epoch_state=epoch_state,
+                            train_metrics=train_metrics,
+                            val_metrics=val_metrics
+                        )
+                        last_eval_step = step
+                        should_stop = self._run_validation_callbacks(epoch=epoch, logs=last_logs)
+                        if should_stop:
+                            break
 
-                with torch.no_grad():
-                    for X_val in self.val_loader:
-                        X_val = X_val.to(self.device, non_blocking=self.pin_memory)
-
-                        outputs_val = self.model(X_val)
-                        loss_val = self.criterion(outputs_val, X_val)
-                        bsz = X_val.size(0)
-                        val_loss_sum += float(loss_val.item()) * bsz
-
-                        if self.metric:
-                            val_metric_sum += float(self.metric(outputs_val, X_val)) * bsz
-
-                        val_count += bsz
-                
-                # Gather validation results from all processes
-                if self._is_distributed:
-                    packed = torch.tensor(
-                        data=[val_loss_sum, val_metric_sum, float(val_count)],
-                        dtype=torch.float64,
-                        device=self.device,
-                    )
-                    gathered = [torch.zeros_like(packed) for _ in range(self.world_size)]
-                    all_gather(gathered, packed)
-
-                    total_loss_sum = sum(g[0].item() for g in gathered)
-                    total_metric_sum = sum(g[1].item() for g in gathered)
-                    total_count = int(sum(g[2].item() for g in gathered))
-                else:
-                    total_loss_sum = val_loss_sum
-                    total_metric_sum = val_metric_sum
-                    total_count = val_count
-
-                # Global averages
-                val_loss = total_loss_sum / max(total_count, 1)
-                val_metric = (total_metric_sum / max(total_count, 1)) if self.metric else 0.0
-
-                # Short summary for validation
-                if self.rank == 0:
-                    tqdm.write(
-                        f"epoch: {epoch + 1}/{self.num_epochs} | "
-                        f"val_loss: {val_loss:.4f} | "
-                        f"val_metric: {val_metric:.4f}"
-                    )
-
-                if self.scheduler:
-                    self.scheduler.step()
-
-                # Get learning rate
-                current_lr = self.optimizer.param_groups[0]['lr']
-
-                # Save best model
-                if self.best_model_path and self.rank == 0 and val_loss < self.best_val_loss:
-                    self.best_val_loss = val_loss
-                    to_save = self.model.module if self._is_distributed else self.model
-                    torch.save(to_save.state_dict(), self.best_model_path)
-
-                # Update history
-                self.history['epoch'].append(epoch + 1)
-                self.history['train_loss'].append(avg_loss)
-                self.history['train_metric'].append(avg_metric)
-                self.history['val_loss'].append(val_loss)
-                self.history['val_metric'].append(val_metric)
-
-                # Save a checkpoint every epoch
-                self.save_checkpoint(epoch)
-
-                # Log results
-                logs = {
-                    'epoch': epoch + 1,
-                    'train_loss': avg_loss,
-                    'train_metric': avg_metric,
-                    'val_loss': val_loss,
-                    'val_metric': val_metric,
-                    'learning_rate': current_lr,
-                }
-                self.log_csv(logs)
-
-                # Callback after each epoch
-                for cb in self.callbacks:
-                    cb.on_epoch_end(epoch, trainer=self, logs=logs)
-
-                # Break if any callback says to stop
-                if any(getattr(cb, 'should_stop', False) for cb in self.callbacks):
+                if should_stop:
                     break
 
-            # Callback after training
-            for cb in self.callbacks:
-                cb.on_train_end(trainer=self)
+                self._resume_batch_offset = 0
+                self._resume_epoch_state = None
+                train_metrics = self._reduce_epoch_state(epoch_state)
+                if self.eval_strategy == 'epoch':
+                    val_metrics = self._run_validation_loop()
+                    last_logs = self._finalize_validation_event(
+                        epoch_index=epoch,
+                        epoch_progress=epoch + 1,
+                        global_step=(epoch + 1) * len(self.train_loader),
+                        epoch_state=epoch_state,
+                        train_metrics=train_metrics,
+                        val_metrics=val_metrics
+                    )
+                    should_stop = self._run_validation_callbacks(epoch=epoch, logs=last_logs)
+
+                if should_stop:
+                    break
+
+            for callback in self.callbacks:
+                callback.on_train_end(trainer=self)
         except KeyboardInterrupt:
             if self.rank == 0:
                 print(f"\nTraining interrupted at epoch {epoch + 1}.")
-                
+
             cleanup_ddp()
 
         return self.history, self.model
-    
+
     @torch.no_grad()
     def evaluate(
         self,
@@ -200,78 +222,54 @@ class AutoencoderTrainer(Trainer):
     ) -> Tuple[float, np.ndarray, np.ndarray]:
         if self.test_loader is None:
             raise ValueError("Test dataset is not provided.")
-        
+
         self.model.eval()
-        loss_sum = 0.0
-        count = 0
+        epoch_state = self._init_epoch_state()
         local_true = []
         local_pred = []
 
-        for X_test in self.test_loader:
-            X_test = X_test.to(self.device, non_blocking=self.pin_memory)
+        for batch in self.test_loader:
+            batch = self._move_batch_to_device(batch)
+            outputs = self.model(batch)
+            loss = self.criterion(outputs, batch)
+            batch_size = int(batch.size(0))
+            batch_metric = float(self.metric(outputs, batch)) if self.metric else 0.0
+            self._update_epoch_state(
+                epoch_state=epoch_state,
+                batch_size=batch_size,
+                loss=loss,
+                metric_value=batch_metric
+            )
 
-            outputs = self.model(X_test)
-            batch_loss = self.criterion(outputs, X_test)
-            bsz = X_test.size(0)
-            loss_sum += float(batch_loss.item()) * bsz
-            count += bsz
-
-            local_true.append(X_test.detach().cpu().numpy())
+            local_true.append(batch.detach().cpu().numpy())
             local_pred.append(torch.sigmoid(outputs).detach().cpu().numpy())
 
-        # Stack per-rank arrays
-        local_true = np.concatenate(local_true, axis=0) if local_true else np.empty((0,))
-        local_pred = np.concatenate(local_pred, axis=0) if local_pred else np.empty((0,))
+        reduced_metrics = self._reduce_epoch_state(epoch_state)
+        y_true = np.concatenate(local_true, axis=0) if local_true else np.empty((0,))
+        y_pred = np.concatenate(local_pred, axis=0) if local_pred else np.empty((0,))
 
-        # Gather scalars from all processes
-        if self._is_distributed:
-            packed = torch.tensor(
-                data=[loss_sum, float(count)],
-                dtype=torch.float64,
-                device=self.device,
-            )
-            gathered = [torch.zeros_like(packed) for _ in range(self.world_size)]
-            all_gather(gathered, packed)
-
-            total_loss_sum = sum(g[0].item() for g in gathered)
-            total_count = int(sum(g[1].item() for g in gathered))
-        else:
-            total_loss_sum = loss_sum
-            total_count = count
-
-        # Global average
-        test_loss = total_loss_sum / max(total_count, 1)
-
-        # Gather variable-length arrays from all processes
         if self._is_distributed:
             gathered_true = [None for _ in range(self.world_size)]
             gathered_pred = [None for _ in range(self.world_size)]
-            all_gather_object(gathered_true, local_true)
-            all_gather_object(gathered_pred, local_pred)
+            all_gather_object(gathered_true, y_true)
+            all_gather_object(gathered_pred, y_pred)
+            y_true = np.concatenate(gathered_true, axis=0) if gathered_true else np.empty((0,))
+            y_pred = np.concatenate(gathered_pred, axis=0) if gathered_pred else np.empty((0,))
 
-            if self.rank == 0:
-                y_true = np.concatenate(gathered_true, axis=0) if gathered_true else np.empty((0,))
-                y_pred = np.concatenate(gathered_pred, axis=0) if gathered_pred else np.empty((0,))
-            else:
-                y_true = local_true
-                y_pred = local_pred
-        else:
-            y_true = local_true
-            y_pred = local_pred
+        self.last_eval_metrics = dict(reduced_metrics)
 
         if self.rank == 0:
-            print(f"test_loss: {test_loss:.4f}")
-
-            # Visualization
+            print(
+                f"test_loss: {reduced_metrics['loss']:.4f} | "
+                f"test_metric: {reduced_metrics['metric']:.4f}"
+            )
             if plot is not None:
                 if isinstance(plot, list):
-                    for i, viz in enumerate(plot):
-                        output_path = os.path.join(self.outputs_dir, f"{self.run_name}_viz_{i + 1}.png")
-                        output_path = output_path if self.save_fig else None
-                        viz(y_true, y_pred, save_fig=output_path)
+                    for index, visualizer in enumerate(plot):
+                        output_path = os.path.join(self.outputs_dir, f'{self.run_name}_viz_{index + 1}.png')
+                        visualizer(y_true, y_pred, save_fig=output_path if self.save_fig else None)
                 else:
-                    output_path = os.path.join(self.outputs_dir, f"{self.run_name}.png")
-                    output_path = output_path if self.save_fig else None
-                    plot(y_true, y_pred, save_fig=output_path)
+                    output_path = os.path.join(self.outputs_dir, f'{self.run_name}.png')
+                    plot(y_true, y_pred, save_fig=output_path if self.save_fig else None)
 
-        return test_loss, y_true, y_pred
+        return reduced_metrics['loss'], y_true, y_pred

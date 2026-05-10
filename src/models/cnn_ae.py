@@ -1,14 +1,15 @@
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from ..configs import AutoencoderConfig
 
 
 class CNNAutoencoder(nn.Module):
     """
-    A CNN autoencoder using ConvTranspose2d.
+    A symmetric CNN autoencoder for segment-level anomaly detection.
     """
+
     def __init__(
         self,
         config: Optional[AutoencoderConfig] = None,
@@ -36,8 +37,7 @@ class CNNAutoencoder(nn.Module):
             Number of Conv-GN-ReLU blocks in each encoder stage.
         """
         super().__init__()
-        
-        # Use config if provided, otherwise use defaults
+
         if config is not None:
             self.height = height if height is not None else config.height
             self.width = width if width is not None else config.width
@@ -45,148 +45,213 @@ class CNNAutoencoder(nn.Module):
             self.init_filters = init_filters if init_filters is not None else config.init_filters
             self.layers = layers if layers is not None else config.layers
         else:
-            self.height = height if height is not None else 1080
-            self.width = width if width is not None else 1920
+            self.height = height if height is not None else 1060
+            self.width = width if width is not None else 1882
             self.latent_dim = latent_dim if latent_dim is not None else 32
             self.init_filters = init_filters if init_filters is not None else 128
             self.layers = layers if layers is not None else [2, 2, 2]
 
-        # Bottleneck size
-        self.bottleneck_height = 9
-        self.bottleneck_width = 16
+        if len(self.layers) != 3:
+            raise ValueError('CNNAutoencoder expects exactly three encoder stages.')
 
-        # Use GroupNorm
         self.norm_layer = lambda num_channels: nn.GroupNorm(1, num_channels)
 
-        # Encoder stem (downsample x8)
-        self.conv1 = nn.Conv2d(3, self.init_filters, kernel_size=4, stride=4, padding=0, bias=True)
+        self.stem_kernel = (8, 8)
+        self.stem_stride = (4, 4)
+        self.stem_padding = (2, 3)
+
+        shapes = self._compute_shapes()
+        self._shapes = [
+            shapes['stem'],
+            shapes['post_stem_pool'],
+            shapes['stage1_conv'],
+            shapes['stage1_postpool'],
+            shapes['stage2_conv'],
+            shapes['stage2_postpool'],
+        ]
+
+        self.bottleneck_height, self.bottleneck_width = shapes['stage2_postpool']
+        self.bottleneck_area = self.bottleneck_height * self.bottleneck_width
+
+        self.conv1 = nn.Conv2d(
+            in_channels=3,
+            out_channels=self.init_filters,
+            kernel_size=self.stem_kernel,
+            stride=self.stem_stride,
+            padding=self.stem_padding,
+            bias=True,
+        )
         self.bn1 = self.norm_layer(self.init_filters)
         self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        stem_out_height = self._conv_out_size(self.height, 4, 4, 0)
-        stem_out_width = self._conv_out_size(self.width, 4, 4, 0)
-        stem_out_height = self._conv_out_size(stem_out_height, 2, 2, 0)
-        stem_out_width = self._conv_out_size(stem_out_width, 2, 2, 0)
+        encoder_channels = [self.init_filters, self.init_filters * 2, self.latent_dim]
 
-        if stem_out_height % self.bottleneck_height != 0 or stem_out_width % self.bottleneck_width != 0:
-            raise ValueError("Stem output must be divisible by bottleneck size.")
+        self.encoder_layers = nn.ModuleList(
+            [
+                self._make_stage(
+                    in_channels=self.init_filters,
+                    out_channels=encoder_channels[0],
+                    blocks=self.layers[0],
+                    stride=1,
+                    pooling=False,
+                ),
+                self._make_stage(
+                    in_channels=encoder_channels[0],
+                    out_channels=encoder_channels[1],
+                    blocks=self.layers[1],
+                    stride=2,
+                    pooling=True,
+                    pool_padding=0,
+                ),
+                self._make_stage(
+                    in_channels=encoder_channels[1],
+                    out_channels=encoder_channels[2],
+                    blocks=self.layers[2],
+                    stride=2,
+                    pooling=True,
+                    pool_padding=1,
+                ),
+            ]
+        )
 
-        remaining_scale_h = stem_out_height // self.bottleneck_height
-        remaining_scale_w = stem_out_width // self.bottleneck_width
-        if remaining_scale_h != remaining_scale_w:
-            raise ValueError("Height/width downsample scales must match.")
-
-        stage_strides = self._split_scale(remaining_scale_h, len(self.layers) - 1)
-        self.stage_strides = [1] + stage_strides
-
-        self.encoder_layers = nn.ModuleList()
-        in_channels = self.init_filters
-        for i, num_blocks in enumerate(self.layers):
-            if i == 0:
-                out_channels = in_channels
-            elif i == len(self.layers) - 1:
-                out_channels = self.latent_dim
-            else:
-                out_channels = in_channels * 2
-
-            stride = self.stage_strides[i]
-            stage = self._make_stage(in_channels, out_channels, num_blocks, stride)
-            self.encoder_layers.append(stage)
-            in_channels = out_channels
-
-        # Encoder output per stage
-        encoder_channels = [self.init_filters]
-        for i in range(1, len(self.layers) - 1):
-            encoder_channels.append(encoder_channels[-1] * 2)
-
-        encoder_channels.append(self.latent_dim)
-
-        bottleneck_height = stem_out_height
-        bottleneck_width = stem_out_width
-        for stride in self.stage_strides:
-            if stride > 1:
-                bottleneck_height = self._conv_out_size(bottleneck_height, stride, stride, 0)
-                bottleneck_width = self._conv_out_size(bottleneck_width, stride, stride, 0)
-
-        if bottleneck_height != self.bottleneck_height or bottleneck_width != self.bottleneck_width:
-            raise ValueError("Encoder does not reach the configured bottleneck size.")
-
-        # Decoder
-        self.decoder_layers = nn.ModuleList()
-        for i in range(len(self.layers) - 1, -1, -1):
-            in_channels = encoder_channels[i - 1] if i > 0 else encoder_channels[0]
-            out_channels = encoder_channels[i]
-            blocks = self.layers[i]
-            stride = self.stage_strides[i]
-
-            for _ in range(blocks - 1):
-                self.decoder_layers.append(
-                    nn.Sequential(
-                        nn.ConvTranspose2d(
-                            in_channels=out_channels,
-                            out_channels=out_channels,
-                            kernel_size=3,
-                            stride=1,
-                            padding=1,
-                            bias=True
-                        ),
-                        self.norm_layer(out_channels),
-                        nn.ReLU(inplace=True),
-                    )
-                )
-
-            if stride == 1:
-                kernel_size = 3
-                padding = 1
-            else:
-                kernel_size = stride
-                padding = 0
-
-            self.decoder_layers.append(
-                nn.Sequential(
-                    nn.ConvTranspose2d(
-                        in_channels=out_channels,
-                        out_channels=in_channels,
-                        kernel_size=kernel_size,
-                        stride=stride,
-                        padding=padding,
-                        bias=True
-                    ),
-                    self.norm_layer(in_channels),
-                    nn.ReLU(inplace=True),
-                )
-            )
-
-        # Undo stem maxpool
-        self.decoder_layers.append(
-            nn.Sequential(
-                nn.ConvTranspose2d(
+        self.decoder_layers = nn.ModuleList(
+            [
+                self._make_decoder_layer(
+                    in_channels=encoder_channels[2],
+                    out_channels=encoder_channels[1],
+                    kernel_size=(2, 2),
+                    stride=(2, 2),
+                    padding=(1, 1),
+                    input_size=shapes['stage2_postpool'],
+                    target_size=shapes['stage2_conv'],
+                ),
+                self._make_decoder_layer(
+                    in_channels=encoder_channels[1],
+                    out_channels=encoder_channels[1],
+                    kernel_size=(3, 3),
+                    stride=(2, 2),
+                    padding=(1, 1),
+                    input_size=shapes['stage2_conv'],
+                    target_size=shapes['stage1_postpool'],
+                ),
+                self._make_decoder_layer(
+                    in_channels=encoder_channels[1],
+                    out_channels=encoder_channels[0],
+                    kernel_size=(3, 2),
+                    stride=(2, 2),
+                    padding=(0, 0),
+                    input_size=shapes['stage1_postpool'],
+                    target_size=shapes['stage1_conv'],
+                ),
+                self._make_decoder_layer(
                     in_channels=encoder_channels[0],
                     out_channels=encoder_channels[0],
-                    kernel_size=2,
-                    stride=2,
-                    padding=0,
-                    bias=True
+                    kernel_size=(3, 4),
+                    stride=(2, 2),
+                    padding=(1, 1),
+                    input_size=shapes['stage1_conv'],
+                    target_size=shapes['post_stem_pool'],
                 ),
-                self.norm_layer(encoder_channels[0]),
-                nn.ReLU(inplace=True),
-            )
+                self._make_decoder_layer(
+                    in_channels=encoder_channels[0],
+                    out_channels=encoder_channels[0],
+                    kernel_size=(3, 3),
+                    stride=(2, 2),
+                    padding=(1, 1),
+                    input_size=shapes['post_stem_pool'],
+                    target_size=shapes['stem'],
+                ),
+                nn.Sequential(
+                    nn.ConvTranspose2d(
+                        in_channels=encoder_channels[0],
+                        out_channels=3,
+                        kernel_size=self.stem_kernel,
+                        stride=self.stem_stride,
+                        padding=self.stem_padding,
+                        output_padding=self._compute_output_padding(
+                            input_size=shapes['stem'],
+                            target_size=(self.height, self.width),
+                            kernel_size=self.stem_kernel,
+                            stride=self.stem_stride,
+                            padding=self.stem_padding,
+                        ),
+                        bias=True,
+                    )
+                ),
+            ]
         )
 
-        # Invert the stem to original size
-        self.decoder_layers.append(
-            nn.Sequential(
-                nn.ConvTranspose2d(
-                    in_channels=encoder_channels[0],
-                    out_channels=3,
-                    kernel_size=4,
-                    stride=4,
-                    padding=0,
-                    bias=True
-                )
+    @staticmethod
+    def _conv_out_size(size: int, kernel_size: int, stride: int, padding: int) -> int:
+        return ((size + (2 * padding) - kernel_size) // stride) + 1
+
+    @staticmethod
+    def _pool_out_size(size: int, kernel_size: int, stride: int, padding: int) -> int:
+        return ((size + (2 * padding) - kernel_size) // stride) + 1
+
+    @classmethod
+    def _compute_output_padding(
+        cls,
+        input_size: Tuple[int, int],
+        target_size: Tuple[int, int],
+        kernel_size: Tuple[int, int],
+        stride: Tuple[int, int],
+        padding: Tuple[int, int],
+    ) -> Tuple[int, int]:
+        base_height = ((input_size[0] - 1) * stride[0]) - (2 * padding[0]) + kernel_size[0]
+        base_width = ((input_size[1] - 1) * stride[1]) - (2 * padding[1]) + kernel_size[1]
+        output_padding = (target_size[0] - base_height, target_size[1] - base_width)
+        if any(value not in (0, 1) for value in output_padding):
+            raise ValueError(
+                f'Invalid output padding from {input_size} to {target_size}: {output_padding}'
             )
+
+        return output_padding
+
+    def _compute_shapes(self) -> Dict[str, Tuple[int, int]]:
+        stem_height = self._conv_out_size(
+            self.height,
+            kernel_size=self.stem_kernel[0],
+            stride=self.stem_stride[0],
+            padding=self.stem_padding[0],
         )
+        stem_width = self._conv_out_size(
+            self.width,
+            kernel_size=self.stem_kernel[1],
+            stride=self.stem_stride[1],
+            padding=self.stem_padding[1],
+        )
+
+        post_stem_pool = (
+            self._pool_out_size(stem_height, kernel_size=3, stride=2, padding=1),
+            self._pool_out_size(stem_width, kernel_size=3, stride=2, padding=1),
+        )
+        stage1_conv = (
+            self._conv_out_size(post_stem_pool[0], kernel_size=3, stride=2, padding=1),
+            self._conv_out_size(post_stem_pool[1], kernel_size=3, stride=2, padding=1),
+        )
+        stage1_postpool = (
+            self._pool_out_size(stage1_conv[0], kernel_size=2, stride=2, padding=0),
+            self._pool_out_size(stage1_conv[1], kernel_size=2, stride=2, padding=0),
+        )
+        stage2_conv = (
+            self._conv_out_size(stage1_postpool[0], kernel_size=3, stride=2, padding=1),
+            self._conv_out_size(stage1_postpool[1], kernel_size=3, stride=2, padding=1),
+        )
+        stage2_postpool = (
+            self._pool_out_size(stage2_conv[0], kernel_size=2, stride=2, padding=1),
+            self._pool_out_size(stage2_conv[1], kernel_size=2, stride=2, padding=1),
+        )
+
+        return {
+            'stem': (stem_height, stem_width),
+            'post_stem_pool': post_stem_pool,
+            'stage1_conv': stage1_conv,
+            'stage1_postpool': stage1_postpool,
+            'stage2_conv': stage2_conv,
+            'stage2_postpool': stage2_postpool,
+        }
 
     def _make_stage(
         self,
@@ -194,33 +259,24 @@ class CNNAutoencoder(nn.Module):
         out_channels: int,
         blocks: int,
         stride: int,
+        pooling: bool = False,
+        pool_padding: int = 0,
     ) -> nn.Sequential:
-        layers = []
-
-        # First block (may downsample via stride)
-        if stride == 1:
-            kernel_size = 3
-            padding = 1
-        else:
-            kernel_size = stride
-            padding = 0
-
-        layers.append(
+        layers = [
             nn.Sequential(
                 nn.Conv2d(
                     in_channels=in_channels,
                     out_channels=out_channels,
-                    kernel_size=kernel_size,
+                    kernel_size=3,
                     stride=stride,
-                    padding=padding,
-                    bias=True
+                    padding=1,
+                    bias=True,
                 ),
                 self.norm_layer(out_channels),
                 nn.ReLU(inplace=True),
             )
-        )
+        ]
 
-        # Remaining blocks (stride=1)
         for _ in range(1, blocks):
             layers.append(
                 nn.Sequential(
@@ -230,44 +286,47 @@ class CNNAutoencoder(nn.Module):
                         kernel_size=3,
                         stride=1,
                         padding=1,
-                        bias=True
+                        bias=True,
                     ),
                     self.norm_layer(out_channels),
                     nn.ReLU(inplace=True),
                 )
             )
 
+        if pooling:
+            layers.append(nn.MaxPool2d(kernel_size=2, stride=2, padding=pool_padding))
+
         return nn.Sequential(*layers)
 
-    @staticmethod
-    def _conv_out_size(size: int, kernel: int, stride: int, padding: int) -> int:
-        return (size + 2 * padding - kernel) // stride + 1
-
-    @staticmethod
-    def _split_scale(scale: int, parts: int) -> List[int]:
-        if parts <= 0:
-            raise ValueError("Stage count must be positive.")
-        if parts == 1:
-            return [scale]
-
-        factors = []
-        remainder = scale
-        for prime in (5, 3, 2):
-            while remainder % prime == 0 and len(factors) < parts:
-                factors.append(prime)
-                remainder //= prime
-
-        if remainder != 1:
-            factors.append(remainder)
-
-        while len(factors) < parts:
-            factors.append(1)
-
-        while len(factors) > parts:
-            factors[-2] *= factors[-1]
-            factors.pop()
-
-        return factors
+    def _make_decoder_layer(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: Tuple[int, int],
+        stride: Tuple[int, int],
+        padding: Tuple[int, int],
+        input_size: Tuple[int, int],
+        target_size: Tuple[int, int],
+    ) -> nn.Sequential:
+        return nn.Sequential(
+            nn.ConvTranspose2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                output_padding=self._compute_output_padding(
+                    input_size=input_size,
+                    target_size=target_size,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=padding,
+                ),
+                bias=True,
+            ),
+            self.norm_layer(out_channels),
+            nn.ReLU(inplace=True),
+        )
 
     def _forward_shapes(self, x: Tensor) -> List[Tuple[int, int]]:
         shapes = []
@@ -277,28 +336,33 @@ class CNNAutoencoder(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
         shapes.append(x.shape[-2:])
+
         for layer in self.encoder_layers:
             x = layer(x)
             shapes.append(x.shape[-2:])
 
         return shapes
 
-    def forward(self, x: Tensor) -> Tensor:
-        B, C, H, W = x.shape
+    @property
+    def shapes(self) -> List[Tuple[int, int]]:
+        return self._shapes
 
-        # Encoder
+    def forward(self, x: Tensor) -> Tensor:
+        batch_size, channels, height, width = x.shape
+
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
+
         for layer in self.encoder_layers:
             x = layer(x)
 
-        # Decoder
         for layer in self.decoder_layers:
             x = layer(x)
 
-        # Validate shape
-        assert x.shape == (B, C, H, W), f"Output shape mismatch: {x.shape} != {(B, C, H, W)}"
+        assert x.shape == (batch_size, channels, height, width), (
+            f'Output shape mismatch: {x.shape} != {(batch_size, channels, height, width)}'
+        )
 
         return x
