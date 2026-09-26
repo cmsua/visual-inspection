@@ -1,15 +1,17 @@
-import os
-import yaml
 import argparse
+import os
+from typing import Optional
+
+import matplotlib.pyplot as plt
+import yaml
 
 import torch
 import torch.multiprocessing as mp
-from torchvision import transforms
 
 from src.configs import AutoencoderConfig, TrainConfig
 from src.engine import AutoencoderTrainer
 from src.models import CNNAutoencoder
-from src.utils import set_seed, setup_ddp, cleanup_ddp
+from src.utils import cleanup_ddp, set_seed, setup_ddp
 from src.utils.data import HexaboardDataset
 from src.utils.viz import plot_history
 
@@ -18,7 +20,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a CNNAutoencoder model on hexaboard images.")
 
     # Model and configurations arguments
-    parser.add_argument('--config-path', type=str, default='./configs/train_CNNAutoencoder.yaml', help="Path to YAML config")
+    parser.add_argument(
+        '--config-path',
+        type=str,
+        default='./configs/train_CNNAutoencoder.yaml',
+        help="Path to YAML config"
+    )
     parser.add_argument('--checkpoint-path', type=str, default=None, help="Checkpoint to restore trainer state")
 
     # Data loading arguments
@@ -32,15 +39,15 @@ def main(
     rank: int,
     world_size: int,
     config_path: str,
-    checkpoint_path: str = None,
+    checkpoint_path: Optional[str] = None,
     train_data_dir: str = './data/train',
-    val_data_dir: str = './data/val',
-):
+    val_data_dir: str = './data/val'
+) -> None:
     # Reproducibility settings
     set_seed(42)
-    
+
     # Load the YAML file
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
 
     model_config = AutoencoderConfig.from_dict(config['model'])
@@ -48,46 +55,41 @@ def main(
 
     # Initialize multi-GPU processing
     setup_ddp(rank, world_size)
-    device = torch.device(f'cuda:{rank}' if torch.cuda.is_available() else 'cpu')
+    try:
+        device = torch.device(f'cuda:{rank}' if torch.cuda.is_available() else 'cpu')
 
-    # Convert np.ndarray to torch.Tensor: (H, W, C) -> (C, H, W)
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
+        # Create the hexaboard datasets
+        train_dataset = HexaboardDataset(root=train_data_dir)
+        val_dataset = HexaboardDataset(root=val_data_dir)
 
-    # Create the hexaboard datasets
-    train_dataset = HexaboardDataset(root=train_data_dir, transform=transform)
-    val_dataset = HexaboardDataset(root=val_data_dir, transform=transform)
+        # Initialize the model
+        model = CNNAutoencoder(config=model_config).to(device)
 
-    # Initialize the model
-    model = CNNAutoencoder(config=model_config).to(device)
+        # Initialize the trainer
+        trainer = AutoencoderTrainer(
+            model=model,
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            device=device,
+            config=train_config
+        )
 
-    # Initialize the trainer
-    trainer = AutoencoderTrainer(
-        model=model,
-        train_dataset=train_dataset,
-        val_dataset=val_dataset,
-        device=device,
-        config=train_config
-    )
-
-    # Resume from checkpoint if provided
-    if checkpoint_path and os.path.exists(checkpoint_path):
-        print(f"Resuming from checkpoint: {checkpoint_path}")
-        try:
+        # Resume from checkpoint if provided
+        if checkpoint_path:
+            print(f"Resuming from checkpoint: {checkpoint_path}")
             trainer.load_checkpoint(checkpoint_path)
-        except Exception as e:
-            print(f"Error loading checkpoint: {e}")
 
-    # Train the model
-    history, model = trainer.train()
+        # Train the model
+        history, model = trainer.train()
 
-    # Clean up distributed processing
-    cleanup_ddp()
+    finally:
+        cleanup_ddp()
 
     # Save the training history plot
-    output_path = os.path.join(trainer.outputs_dir, f"{trainer.run_name}.png") if train_config.save_fig else None
-    plot_history(history, save_fig=output_path)
+    output_path = os.path.join(trainer.outputs_dir, f'{trainer.run_name}.png') if train_config.save_fig else None
+    if rank == 0:
+        figure = plot_history(history, savefig=output_path, show=False)
+        plt.close(figure)
 
 
 if __name__ == '__main__':
@@ -99,13 +101,7 @@ if __name__ == '__main__':
     if world_size > 1:
         mp.spawn(
             main,
-            args=(
-                world_size,
-                args.config_path,
-                args.checkpoint_path,
-                args.train_data_dir,
-                args.val_data_dir
-            ),
+            args=(world_size, args.config_path, args.checkpoint_path, args.train_data_dir, args.val_data_dir),
             nprocs=world_size
         )
     else:
@@ -116,5 +112,5 @@ if __name__ == '__main__':
             config_path=args.config_path,
             checkpoint_path=args.checkpoint_path,
             train_data_dir=args.train_data_dir,
-            val_data_dir=args.val_data_dir,
+            val_data_dir=args.val_data_dir
         )

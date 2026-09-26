@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict
 
-from ..utils import repo_relative
 from src.utils import InspectionResults
+
+from ..utils import repo_relative
 
 
 @dataclass
@@ -25,5 +26,5 @@ class InspectionCache:
             'hybrid_flags': self.inspection.hybrid_flags.tolist(),
             'metadata': self.inspection.metadata,
             'baseline_path': repo_relative(self.baseline_path),
-            'inspected_path': repo_relative(self.board_path),
+            'inspected_path': repo_relative(self.board_path)
         }

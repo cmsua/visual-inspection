@@ -1,30 +1,54 @@
-from typing import Set, Tuple, Optional
+from pathlib import Path
+from typing import Optional, Set, Tuple, Union
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
+from matplotlib.figure import Figure
+
+from .figure import finish_figure
+from ..data import load_skipped_segments
 
 
 def plot_threshold_comparison(
     pw_metrics: Tuple[np.ndarray, np.ndarray, np.ndarray],
     ae_metrics: Tuple[np.ndarray, np.ndarray, np.ndarray],
     skipped_segments: Optional[Set[Tuple[int, int]]] = None,
-    save_fig: Optional[str] = None
-) -> None:
+    save_fig: Optional[str] = None,
+    *,
+    savefig: Optional[Union[str, Path]] = None,
+    show: bool = True
+) -> Optional[Figure]:
     # Extract and validate inputs
+    """
+    Plot per-segment score summaries and thresholds.
+
+    Parameters
+    ----------
+    pw_metrics : Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Input pw metrics.
+    ae_metrics : Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Input ae metrics.
+    skipped_segments : Optional[Set[Tuple[int, int]]]
+        Input skipped segments.
+    save_fig : str, optional
+        Compatibility alias for `savefig`.
+    savefig : str or Path, optional
+        Optional PNG path; create parent directories and save at 300 DPI.
+    show : bool
+        Display and close the figure when True; otherwise return it to the caller.
+
+    Returns
+    -------
+    Figure or None
+        Figure when `show=False`; otherwise None after display.
+    """
     pw_opt, pw_bad, pw_good = pw_metrics
     ae_opt, ae_bad, ae_good = ae_metrics
 
     # Create a 2x4 grid where the last column is a single merged colorbar axis (spanning both rows).
     fig = plt.figure(figsize=(15, 8))
-    gs = fig.add_gridspec(
-        nrows=2,
-        ncols=4,
-        width_ratios=[1, 1, 1, 0.06],
-        height_ratios=[1, 1],
-        wspace=0.3,
-        hspace=0.3
-    )
+    gs = fig.add_gridspec(nrows=2, ncols=4, width_ratios=[1, 1, 1, 0.06], height_ratios=[1, 1], wspace=0.3, hspace=0.3)
     fig.subplots_adjust(left=0.04, right=0.96)
 
     # Last column is a single colorbar axis spanning both rows
@@ -33,7 +57,7 @@ def plot_threshold_comparison(
 
     # Row titles
     row_titles = [
-        ["PW Good SSIMs", "PW Bad SSIMs", "PW Optimal Threshold"],
+        ["PW Good 1 - SSIM", "PW Bad 1 - SSIM", "PW Optimal Threshold"],
         ["AE Good MAEs", "AE Bad MAEs", "AE Optimal Threshold"]
     ]
     arrays_row0 = [pw_good, pw_bad, pw_opt]
@@ -42,12 +66,7 @@ def plot_threshold_comparison(
 
     # Default skip set
     if skipped_segments is None:
-        skipped_segments = {
-            (0, 0), (0, 4),
-            (1, 0), (1, 4),
-            (6, 0), (6, 4),
-            (7, 0), (7, 4),
-        }
+        skipped_segments = load_skipped_segments(shape=pw_opt.shape)
 
     for r in range(2):
         for c in range(3):
@@ -58,7 +77,7 @@ def plot_threshold_comparison(
             # Build skip mask (bounds-checked)
             H, W = arr.shape
             skip_mask = np.zeros((H, W), dtype=bool)
-            for (h, v) in skipped_segments:
+            for h, v in skipped_segments:
                 if 0 <= h < H and 0 <= v < W:
                     skip_mask[h, v] = True
 
@@ -71,7 +90,7 @@ def plot_threshold_comparison(
             for i in range(H):
                 for j in range(W):
                     if not skip_mask[i, j] and np.isfinite(plot_arr[i, j]):
-                        annot[i, j] = f"{plot_arr[i, j]:.3f}"
+                        annot[i, j] = f'{plot_arr[i, j]:.3f}'
 
             # Use a copy of the colormap and set the bad color to black
             cmap = plt.cm.get_cmap('coolwarm')
@@ -83,7 +102,7 @@ def plot_threshold_comparison(
             cmap.set_bad('black')
 
             # Determine whether to draw the colorbar only on the bottom-right plot (r==1, c==2)
-            draw_cbar = (r == 1 and c == 2)
+            draw_cbar = r == 1 and c == 2
             sns.heatmap(
                 data=plot_arr,
                 cmap=cmap,
@@ -104,10 +123,7 @@ def plot_threshold_comparison(
             ax.set_yticklabels([str(y) for y in np.arange(1, H + 1)], rotation=0)
 
     fig.suptitle("Threshold Comparison")
-    if save_fig:
-        plt.savefig(save_fig, dpi=300)
-    else:
-        plt.show()
+    return finish_figure(plt.gcf(), savefig, show, save_fig)
 
 
 def plot_confusion_matrices(
@@ -115,10 +131,38 @@ def plot_confusion_matrices(
     pw_cm: np.ndarray,
     double_cm: np.ndarray,
     title: str = '',
-    save_fig: Optional[str] = None
-) -> None:
+    save_fig: Optional[str] = None,
+    *,
+    savefig: Optional[Union[str, Path]] = None,
+    show: bool = True
+) -> Optional[Figure]:
+    """
+    Plot confusion matrices for AE, pixel, and intersection flags.
+
+    Parameters
+    ----------
+    ae_cm : np.ndarray
+        Input ae cm.
+    pw_cm : np.ndarray
+        Input pw cm.
+    double_cm : np.ndarray
+        Input double cm.
+    title : str
+        Input title.
+    save_fig : str, optional
+        Compatibility alias for `savefig`.
+    savefig : str or Path, optional
+        Optional PNG path; create parent directories and save at 300 DPI.
+    show : bool
+        Display and close the figure when True; otherwise return it to the caller.
+
+    Returns
+    -------
+    Figure or None
+        Figure when `show=False`; otherwise None after display.
+    """
     mats = [ae_cm, pw_cm, double_cm]
-    names = ["Autoencoder", "Pixel-wise", "Both"]
+    names = ['Autoencoder', 'Pixel-wise', 'Both']
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 5))
     vmin = 0
@@ -140,13 +184,10 @@ def plot_confusion_matrices(
 
         ax.set_xlabel("Predicted")
         ax.set_ylabel("Actual")
-        ax.set_xticklabels(["Good", "Bad"])
-        ax.set_yticklabels(["Good", "Bad"], rotation=0)
+        ax.set_xticklabels(['Good', 'Bad'])
+        ax.set_yticklabels(['Good', 'Bad'], rotation=0)
         ax.set_title(name)
 
     fig.suptitle(title)
     fig.tight_layout()
-    if save_fig:
-        plt.savefig(save_fig, dpi=300)
-    else:
-        plt.show()
+    return finish_figure(plt.gcf(), savefig, show, save_fig)

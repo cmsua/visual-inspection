@@ -1,15 +1,64 @@
 import json
-from collections import defaultdict
-from typing import List, Optional, Tuple
+from pathlib import Path
+from typing import List, Optional, Sequence, Set, Tuple
 
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
-from .data import load_hexaboard
+from .data import load_skipped_segments
+from .data.board_contract import REPO_ROOT, open_board, validate_coordinates
+from .inspection_scores import segment_scores
+
+
+def _as_score_list(value: object) -> List[float]:
+    if isinstance(value, np.ndarray):
+        values = value.tolist()
+    elif isinstance(value, (list, tuple)):
+        values = list(value)
+    elif value is None:
+        values = []
+    else:
+        values = [value]
+
+    scores = []
+    for candidate in values:
+        score = float(candidate)
+        if np.isfinite(score):
+            scores.append(score)
+
+    return scores
+
+
+def _select_threshold(good_scores: Sequence[float], bad_scores: Sequence[float]) -> float:
+    good = np.asarray(good_scores, dtype=float)
+    bad = np.asarray(bad_scores, dtype=float)
+
+    if good.size == 0 or bad.size == 0:
+        raise ValueError("Both good_scores and bad_scores must contain at least one finite value.")
+
+    candidates = np.unique(np.concatenate([good, bad]))
+    best_key = None
+    best_threshold = None
+
+    for threshold in candidates:
+        tp = float(np.sum(bad >= threshold))
+        fp = float(np.sum(good >= threshold))
+        fn = float(np.sum(bad < threshold))
+        tpr = tp / bad.size
+        fpr = fp / good.size
+        denominator = (2.0 * tp) + fp + fn
+        f1 = 0.0 if denominator == 0.0 else (2.0 * tp) / denominator
+        key = (-f1, fpr, -tpr, -threshold)
+        if best_key is None or key < best_key:
+            best_key = key
+            best_threshold = float(threshold)
+
+    if best_threshold is None:
+        raise ValueError("Unable to select a threshold from the provided scores.")
+
+    return best_threshold
 
 
 def process_metrics(
@@ -19,65 +68,63 @@ def process_metrics(
     fill_mode: str = 'min'
 ) -> np.ndarray:
     """
-    Compute a per-segment SSIM and MAE threshold map.
-
-    For each segment (h, v) present in `mask` (or inferred from `bad_ssims` if mask is None)
-    compute a threshold. Since `good_ssims` and `bad_ssims` contain a single SSIM
-    value per segment (or an average), we use the midpoint between the good and bad
-    SSIM values as the per-segment threshold. Cells not present in `mask` are filled
-    with the mean of the computed thresholds.
+    Compute a per-segment threshold map from good and bad score distributions.
 
     Parameters
     ----------
-    good_ssims: np.ndarray
-        2D array of SSIM values for good image segments.
-    bad_ssims: np.ndarray
-        2D array of SSIM values for bad image segments.
-    mask: np.ndarray, optional
-        Optional boolean mask (same shape as inputs) selecting valid positions.
-    fill_mode: str
-        Method to fill segments not in `mask` or where computation failed:
-        `min` (default) uses the minimum computed threshold,
-        `max` uses the maximum computed threshold,
-        any other value uses the mean computed threshold.
+    good_ssims : np.ndarray
+        Array whose entries are per-segment score lists for good segments. Numeric
+        2D arrays are also accepted and are treated as one score per segment.
+    bad_ssims : np.ndarray
+        Array whose entries are per-segment score lists for bad segments. Numeric
+        2D arrays are also accepted and are treated as one score per segment.
+    mask : np.ndarray, optional
+        Optional boolean mask selecting valid segment positions.
+    fill_mode : str
+        Method used to fill thresholds outside the mask or where computation
+        fails. `'min'` uses the minimum computed threshold, `'max'` uses the
+        maximum, and any other value uses the mean.
 
     Returns
     -------
     np.ndarray
-        Array of shape (H_seg, V_seg) with a threshold value for each segment.
+        Array of shape `(H_seg, V_seg)` with a threshold value for each segment.
     """
-    good = np.asarray(good_ssims, dtype=float)
-    bad = np.asarray(bad_ssims, dtype=float)
+    good = np.asarray(good_ssims, dtype=object)
+    bad = np.asarray(bad_ssims, dtype=object)
 
     if good.shape != bad.shape:
-        raise ValueError(f"good_ssims and bad_ssims must have the same shape, got {good.shape} vs. {bad.shape}.")
+        raise ValueError(f"good_ssims and bad_ssims must have the same shape, got {good.shape} vs {bad.shape}.")
 
-    H, W = good.shape
+    H_seg, V_seg = good.shape
 
     if mask is None:
-        # Infer mask from bad_ssims: any finite, non-zero value indicates the segment was listed
-        mask = np.isfinite(bad) & (bad != 0)
+        inferred_mask = np.zeros((H_seg, V_seg), dtype=bool)
+        for h in range(H_seg):
+            for v in range(V_seg):
+                inferred_mask[h, v] = len(_as_score_list(bad[h, v])) > 0
+
+        mask = inferred_mask
 
     mask = np.asarray(mask, dtype=bool)
-    if mask.shape != (H, W):
-        raise ValueError(f"mask shape {mask.shape} must match SSIM shape {(H, W)}.")
+    if mask.shape != (H_seg, V_seg):
+        raise ValueError(f"mask shape {mask.shape} must match score shape {(H_seg, V_seg)}.")
 
-    thresholds = np.full((H, W), np.nan, dtype=float)
+    thresholds = np.full((H_seg, V_seg), np.nan, dtype=float)
 
-    # For segments in the mask compute threshold as midpoint (good + bad) / 2
-    for i in range(H):
-        for j in range(W):
-            if not mask[i, j]:
+    for h in range(H_seg):
+        for v in range(V_seg):
+            if not mask[h, v]:
                 continue
 
-            g = good[i, j]
-            b = bad[i, j]
-            if not (np.isfinite(g) and np.isfinite(b)):
-                thresholds[i, j] = np.nan
-            else:
-                thresholds[i, j] = b  # use min of MAEs and SSIMs for guaranteed true positive
+            good_scores = _as_score_list(good[h, v])
+            bad_scores = _as_score_list(bad[h, v])
 
-    # Compute fill value as mean of computed thresholds for masked segments
+            if not good_scores or not bad_scores:
+                continue
+
+            thresholds[h, v] = _select_threshold(good_scores, bad_scores)
+
     computed = np.isfinite(thresholds) & mask
     if not computed.any():
         raise ValueError("No valid thresholds could be computed for any masked segment.")
@@ -89,7 +136,6 @@ def process_metrics(
     else:
         fill_value = float(np.nanmean(thresholds[computed]))
 
-    # Fill segments not in mask (or where computation failed) with the mean value
     thresholds[~computed] = fill_value
 
     return thresholds
@@ -99,122 +145,122 @@ def calibrate_metrics(
     baseline_hexaboard: np.ndarray,
     good_hexaboard_paths: List[str],
     model: nn.Module,
-    device: torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+    device: Optional[torch.device] = None,
     json_map_path: str = './calibrations/damaged_segments.json',
+    bad_hexaboard_paths: Optional[List[str]] = None,
+    skipped_segments: Optional[Set[Tuple[int, int]]] = None,
+    normal_quantile: float = 0.99,
+    baseline_is_bgr: bool = False
 ) -> Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray], ...]:
     """
-    Calibrates metrics by calculating SSIM and MAE values for pairs of hexaboard segments, distinguishing
-    between 'bad' segments (bad vs. baseline) and 'good' segments (baseline vs. good).
-    Determines the optimal SSIM threshold for pixel-wise comparison and autoencoder reconstruction.
+    Calibrate segment scores while processing one board at a time.
 
     Parameters
     ----------
-    baseline_hexaboard: np.ndarray
-        5D array with shape (H_seg, V_seg, height, width, num_channels) representing the baseline hexaboard.
-    good_hexaboard: np.ndarray
-        5D array with shape (H_seg, V_seg, height, width, num_channels) representing the second good hexaboard to compare.
-    model: nn.Module
-        The autoencoder model used for reconstructing the segments.
-    device: torch.device
-        The device to run the calibration on.
-    json_map_path: str
-        Path to the JSON file containing indices of the bad segments.
+    baseline_hexaboard : np.ndarray
+        RGB normalized board, or raw uint8 BGR when `baseline_is_bgr=True`.
+    good_hexaboard_paths : List[str]
+        Normal calibration boards. Each board/coordinate contributes once.
+    model : nn.Module
+        Trained CNN returning reconstruction logits.
+    device : torch.device, optional
+        Execution device.
+    json_map_path : str
+        Damaged-label JSON with repository-relative board IDs.
+    bad_hexaboard_paths : List[str], optional
+        Explicit anomalous calibration subset. Defaults to labeled bad boards.
+    skipped_segments : Set[Tuple[int, int]], optional
+        Physical skip mask.
+    normal_quantile : float
+        Normal-score quantile for positions without defect examples.
+    baseline_is_bgr : bool
+        Whether the baseline is the raw stored array.
 
     Returns
     -------
-    Tuple[np.ndarray, np.ndarray, np.ndarray]
-        A tuple containing:
-        - optimal_threshold (np.ndarray): The optimal SSIM threshold for segment classification.
-        - bad_ssims (np.ndarray): SSIM values for 'bad' segments (baseline vs. perturbed).
-        - good_ssims (np.ndarray): SSIM values for 'good' segments (baseline vs. second baseline).
+    Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray], ...]
+        Pixel and AE tuples containing thresholds, bad minima, and good maxima.
     """
-    H_seg, V_seg, _, _, _ = baseline_hexaboard.shape
+    device = device or next(model.parameters()).device
+    if baseline_is_bgr:
+        baseline = baseline_hexaboard
+    else:
+        baseline = np.clip(baseline_hexaboard[..., ::-1] * 255, 0, 255).round().astype(np.uint8)
 
-    # Set the model to evaluation mode
+    shape = baseline.shape[:2]
+    skipped = (
+        load_skipped_segments(shape=shape)
+        if skipped_segments is None
+        else validate_coordinates(skipped_segments, shape)
+    )
+    coordinates = [(r, c) for r in range(shape[0]) for c in range(shape[1]) if (r, c) not in skipped]
+    with open(json_map_path, 'r', encoding='utf-8') as handle:
+        entries = json.load(handle)['files']
+
+    labels = {
+        str((REPO_ROOT / path).resolve()): validate_coordinates(
+            [(item['row'], item['col']) for item in entry.get('damaged', [])],
+            shape
+        )
+        for path, entry in entries.items()
+    }
+    good_paths = sorted({str(Path(path).resolve()) for path in good_hexaboard_paths})
+    bad_paths = sorted(
+        {
+            str(Path(path).resolve())
+            for path in (
+                bad_hexaboard_paths
+                if bad_hexaboard_paths is not None
+                else [path for path, damaged in labels.items() if damaged]
+            )
+        }
+    )
+    if set(good_paths) & set(bad_paths):
+        raise ValueError("Normal and anomalous calibration boards must be disjoint.")
+
+    if not good_paths:
+        raise ValueError("No normal calibration boards were selected.")
+
+    scores = {(r, c): [[], [], [], []] for r, c in coordinates}
     model.eval()
+    for is_bad, paths in ((False, good_paths), (True, bad_paths)):
+        for index, path in enumerate(paths):
+            damaged = labels.get(path, set())
+            if not is_bad and damaged:
+                raise ValueError(f"Normal calibration board has damaged labels: `{path}`.")
 
-    # Open the JSON file to get a list of all indices of bad segments
-    if json_map_path is not None:
-        with open(json_map_path, 'r') as f:
-            bad_segments_mapping = json.load(f)['files']
+            if is_bad and not damaged:
+                raise ValueError(f"Anomalous calibration board has no damaged labels: `{path}`.")
 
-    # Create a dictionary to keep track of which good segments are in the same position as bad segments
-    good_segments_dict = defaultdict(list)
-    for filename in good_hexaboard_paths:
-        image = load_hexaboard(filename)
-        for info_dict in bad_segments_mapping.values():
-            for coord in info_dict['damaged']:
-                h, v = coord['row'], coord['col']
-                good_segments_dict[(h, v)].append(image[h, v])
+            selected = [coordinate for coordinate in coordinates if coordinate in damaged] if is_bad else coordinates
+            board = open_board(path, baseline.shape)
+            for row, col, pixel, ae in segment_scores(baseline, board, selected, model, device):
+                offset = 2 if is_bad else 0
+                scores[row, col][offset].append(pixel)
+                scores[row, col][offset + 1].append(ae)
 
-    # Create a dictionary to map bad segment indices to their corresponding hexaboard segments
-    bad_segments_dict = defaultdict(list)
-    for filename in bad_segments_mapping.keys():
-        image = load_hexaboard(filename)
-        for coord in bad_segments_mapping[filename]['damaged']:
-            h, v = coord['row'], coord['col']
-            bad_segments_dict[(h, v)].append(image[h, v])
+            print(
+                f"Calibration {'bad' if is_bad else 'normal'} board {index + 1}/{len(paths)}: {Path(path).name}",
+                flush=True
+            )
 
-    # Initialize arrays to store SSIM values for autoencoder and pixel-wise comparisons
-    pw_good_ssims = np.zeros((H_seg, V_seg))
-    ae_good_maes = np.zeros((H_seg, V_seg))
-    pw_bad_ssims = np.zeros((H_seg, V_seg))
-    ae_bad_maes = np.zeros((H_seg, V_seg))
-    mask = np.zeros((H_seg, V_seg), dtype=bool)
+    metrics = []
+    for method in (0, 1):
+        thresholds = np.zeros(shape)
+        bad_summary = np.zeros(shape)
+        good_summary = np.zeros(shape)
+        for coordinate, samples in scores.items():
+            good = samples[method]
+            bad = samples[method + 2]
+            if not good:
+                raise ValueError(f"No normal scores for segment `{coordinate}`.")
 
-    # Calculate SSIM and MAE for each good segment against the baseline
-    pw_same_segment_good_ssim = []
-    ae_same_segment_good_mae = []
-    for (h, v), good_segments in good_segments_dict.items():
-        baseline_segment = baseline_hexaboard[h, v]
+            thresholds[coordinate] = (
+                _select_threshold(good, bad) if bad else np.nextafter(float(np.quantile(good, normal_quantile)), np.inf)
+            )
+            good_summary[coordinate] = max(good)
+            bad_summary[coordinate] = min(bad) if bad else 0.0
 
-        pw_same_segment_good_ssim = []
-        ae_same_segment_good_mae = []
-        for good_segment in good_segments:
-            # Pixel-wise SSIM on good segments
-            pw_same_segment_good_ssim.append(1 - ssim(baseline_segment, good_segment, data_range=1.0, channel_axis=2))
+        metrics.append((thresholds, bad_summary, good_summary))
 
-            # Autoencoder MAE on good segments
-            segment = torch.tensor(good_segment).permute(2, 0, 1).unsqueeze(0)  # (1, num_channels, height, width)
-            segment = segment.to(device, non_blocking=device.type == 'cuda')
-            recons = torch.sigmoid(model(segment))
-            pred = recons[0].permute(1, 2, 0)
-            true = segment[0].permute(1, 2, 0)
-            ae_same_segment_good_mae.append(F.l1_loss(pred, true).item())
-
-        pw_good_ssims[h, v] = np.max(pw_same_segment_good_ssim) if pw_same_segment_good_ssim else 0
-        ae_good_maes[h, v] = np.max(ae_same_segment_good_mae) if ae_same_segment_good_mae else 0
-        
-    # Calculate SSIM and MAE for each bad segment against the baseline
-    for (h, v), bad_segments in bad_segments_dict.items():
-        baseline_segment = baseline_hexaboard[h, v]
-        mask[h, v] = True
-
-        pw_same_segment_bad_ssim = []
-        ae_same_segment_bad_mae = []
-        for bad_segment in bad_segments:
-            # Pixel-wise SSIM on bad segments
-            pw_same_segment_bad_ssim.append(1 - ssim(baseline_segment, bad_segment, data_range=1.0, channel_axis=2))
-
-            # Autoencoder MAE on bad segments
-            segment = torch.tensor(bad_segment).permute(2, 0, 1).unsqueeze(0)  # (1, num_channels, height, width)
-            segment = segment.to(device, non_blocking=device.type == 'cuda')
-            recons = torch.sigmoid(model(segment))
-            pred = recons[0].permute(1, 2, 0)
-            true = segment[0].permute(1, 2, 0)
-            ae_same_segment_bad_mae.append(F.l1_loss(pred, true).item())
-
-        if len(pw_same_segment_bad_ssim) > 1:
-            print(f"Multiple bad segments at ({h}, {v}).")
-
-        pw_bad_ssims[h, v] = np.min(pw_same_segment_bad_ssim) if pw_same_segment_bad_ssim else 0
-        ae_bad_maes[h, v] = np.min(ae_same_segment_bad_mae) if ae_same_segment_bad_mae else 0
-
-    # Process the inspection to find the optimal SSIM threshold for each method
-    pw_threshold = process_metrics(pw_good_ssims, pw_bad_ssims, mask, fill_mode='min')
-    ae_threshold = process_metrics(ae_good_maes, ae_bad_maes, mask, fill_mode='min')
-
-    pw_metrics = (pw_threshold, pw_bad_ssims, pw_good_ssims)
-    ae_metrics = (ae_threshold, ae_bad_maes, ae_good_maes)
-
-    return pw_metrics, ae_metrics
+    return tuple(metrics)

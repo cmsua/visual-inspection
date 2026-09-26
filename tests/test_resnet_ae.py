@@ -32,7 +32,9 @@ def test_forward_output_shape(config: Tuple) -> None:
         latent_dim=latent_dim,
         init_filters=init_filters,
         layers=layers
-    ).to(device)
+    ).to(
+        device
+    )
     x = torch.randn(1, in_ch, height, width, device=device)
     output = model(x)
 
@@ -48,7 +50,9 @@ def test_forward_no_nan(config: Tuple) -> None:
         latent_dim=latent_dim,
         init_filters=init_filters,
         layers=layers
-    ).to(device)
+    ).to(
+        device
+    )
     x = torch.randn(1, in_ch, height, width, device=device)
     output = model(x)
 
@@ -64,7 +68,9 @@ def test_training_step(config: Tuple) -> None:
         latent_dim=latent_dim,
         init_filters=init_filters,
         layers=layers
-    ).to(device)
+    ).to(
+        device
+    )
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     x = torch.randn(1, in_ch, height, width, device=device)
@@ -86,7 +92,9 @@ def test_bottleneck_geometry(config: Tuple) -> None:
         latent_dim=latent_dim,
         init_filters=init_filters,
         layers=layers
-    ).to(device)
+    ).to(
+        device
+    )
 
     assert model.bottleneck_area < 160
     assert model.bottleneck_height > 1 and model.bottleneck_width > 1

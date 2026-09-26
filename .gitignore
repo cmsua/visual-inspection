@@ -9,3 +9,9 @@ docker/*
 venv/*
 AGENTS.md
 *copy*
+# Generated inspection and visualization artifacts
+outputs/
+*.inspection.json
+calibrations/*.npy
+calibrations/manifest.json
+logs/pipeline_smoke/

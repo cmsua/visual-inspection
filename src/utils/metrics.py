@@ -14,7 +14,7 @@ def accuracy_metric_bce(outputs: Tensor, target: Tensor) -> float:
     probs = torch.sigmoid(outputs)
     preds = (probs > 0.5).float().view(-1)
     target = target.view(-1)
-    
+
     return torch.sum(preds == target).item() / target.size(0)
 
 

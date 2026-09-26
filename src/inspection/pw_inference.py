@@ -3,6 +3,9 @@ from typing import List, Set, Tuple
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 
+from ..utils.data import load_skipped_segments
+from ..utils.data.board_contract import validate_coordinates
+
 
 def pixelwise_inference(
     baseline_hexaboard: np.ndarray,
@@ -16,13 +19,13 @@ def pixelwise_inference(
 
     Parameters
     ----------
-    baseline_hexaboard: np.ndarray
-        5D array with shape (H_seg, V_seg, height, width, num_channels) representing the baseline hexaboard.
-    new_hexaboard: np.ndarray
-        5D array with shape (H_seg, V_seg, height, width, num_channels) representing the new hexaboard to compare.
-    threshold: np.ndarray
+    baseline_hexaboard : np.ndarray
+        5D array with shape `[H_seg, V_seg, height, width, num_channels]` representing the baseline hexaboard.
+    new_hexaboard : np.ndarray
+        5D array with shape `[H_seg, V_seg, height, width, num_channels]` representing the new hexaboard to compare.
+    threshold : np.ndarray
         The SSIM threshold below which segments are flagged.
-    skipped_segments: Set[Tuple[int, int]], optional
+    skipped_segments : Set[Tuple[int, int]], optional
         A set of (H_seg, V_seg) tuples representing the segments to skip.
 
     Returns
@@ -31,17 +34,16 @@ def pixelwise_inference(
         A list of tuples containing the (H_seg, V_seg) indices of the flagged segments.
     """
     if baseline_hexaboard.shape != new_hexaboard.shape:
-        raise ValueError(f"Baseline and new hexaboards must have the same shape.")
+        raise ValueError("Baseline and new hexaboards must have the same shape.")
 
     H_seg, V_seg, _, _, _ = baseline_hexaboard.shape
     flagged_segments = []
     if skipped_segments is None:
-        skipped_segments = {
-            (0, 0), (0, 4),
-            (1, 0), (1, 4),
-            (6, 0), (6, 4),
-            (7, 0), (7, 4),
-        }
+        skipped_segments = load_skipped_segments(shape=(H_seg, V_seg))
+
+    skipped_segments = validate_coordinates(skipped_segments, (H_seg, V_seg))
+    if threshold.shape != (H_seg, V_seg) or not np.isfinite(threshold).all():
+        raise ValueError("Threshold shape must match the grid and contain finite scores.")
 
     # Loop over all horizontal and vertical segments
     for h in range(H_seg):

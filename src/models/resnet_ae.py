@@ -12,30 +12,30 @@ class ResNetAutoencoder(nn.Module):
     """
     A ResNet-style autoencoder for segment-level anomaly detection.
     """
+
     def __init__(
         self,
         config: Optional[AutoencoderConfig] = None,
-        # Parameters below can override config if supplied explicitly
         height: Optional[int] = None,
         width: Optional[int] = None,
         latent_dim: Optional[int] = None,
         init_filters: Optional[int] = None,
-        layers: Optional[List[int]] = None,
-    ):
+        layers: Optional[List[int]] = None
+    ) -> None:
         """
         Parameters
         ----------
-        config: AutoencoderConfig, optional
+        config : AutoencoderConfig, optional
             Configuration object containing model parameters. If provided, it will override individual parameters.
-        height: int, optional
+        height : int, optional
             Input image height. Ignored if `config` is provided.
-        width: int, optional
+        width : int, optional
             Input image width. Ignored if `config` is provided.
-        latent_dim: int, optional
+        latent_dim : int, optional
             Dimensionality of the latent space. Ignored if `config` is provided.
-        init_filters: int, optional
+        init_filters : int, optional
             Number of filters in the first convolutional layer. Ignored if `config` is provided.
-        layers: List[int], optional
+        layers : List[int], optional
             List specifying the number of blocks in each encoder stage. Ignored if `config` is provided.
         """
         super().__init__()
@@ -59,14 +59,14 @@ class ResNetAutoencoder(nn.Module):
         self.bottleneck_height, self.bottleneck_width = self._choose_bottleneck_shape(
             self.height,
             self.width,
-            max_area=160,
+            max_area=160
         )
         self.bottleneck_area = self.bottleneck_height * self.bottleneck_width
 
         self.stem = nn.Sequential(
             nn.Conv2d(3, self.init_filters, kernel_size=7, stride=2, padding=3, bias=True),
             self._norm(self.init_filters),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True)
         )
         self.pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
@@ -86,12 +86,12 @@ class ResNetAutoencoder(nn.Module):
         self.bottleneck_reduce = nn.Sequential(
             nn.Conv2d(encoder_stage_channels[-1], self.latent_dim, kernel_size=1, bias=True),
             self._norm(self.latent_dim),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True)
         )
         self.bottleneck_expand = nn.Sequential(
             nn.Conv2d(self.latent_dim, encoder_stage_channels[-1], kernel_size=1, bias=True),
             self._norm(encoder_stage_channels[-1]),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True)
         )
 
         reversed_channels = list(reversed(encoder_stage_channels))
@@ -116,23 +116,18 @@ class ResNetAutoencoder(nn.Module):
         for stage_idx in range(len(self.layers)):
             if 0 < stage_idx < len(self.layers) - 1:
                 current_channels *= 2
+
             channels.append(current_channels)
 
         return channels
 
-    def _make_encoder_stage(
-        self,
-        in_channels: int,
-        out_channels: int,
-        blocks: int,
-        stride: int,
-    ) -> nn.Sequential:
+    def _make_encoder_stage(self, in_channels: int, out_channels: int, blocks: int, stride: int) -> nn.Sequential:
         layers = []
         downsample = None
         if stride != 1 or in_channels != out_channels:
             downsample = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
-                self._norm(out_channels),
+                self._norm(out_channels)
             )
 
         layers.append(
@@ -141,7 +136,7 @@ class ResNetAutoencoder(nn.Module):
                 planes=out_channels,
                 stride=stride,
                 downsample=downsample,
-                norm_layer=self._norm,
+                norm_layer=self._norm
             )
         )
 
@@ -150,12 +145,7 @@ class ResNetAutoencoder(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def _make_decoder_stage(
-        self,
-        in_channels: int,
-        out_channels: int,
-        blocks: int,
-    ) -> nn.Sequential:
+    def _make_decoder_stage(self, in_channels: int, out_channels: int, blocks: int) -> nn.Sequential:
         layers = [
             nn.Sequential(
                 nn.Conv2d(
@@ -164,10 +154,10 @@ class ResNetAutoencoder(nn.Module):
                     kernel_size=3,
                     stride=1,
                     padding=1,
-                    bias=True,
+                    bias=True
                 ),
                 self._norm(out_channels),
-                nn.ReLU(inplace=True),
+                nn.ReLU(inplace=True)
             )
         ]
 
@@ -180,10 +170,10 @@ class ResNetAutoencoder(nn.Module):
                         kernel_size=3,
                         stride=1,
                         padding=1,
-                        bias=True,
+                        bias=True
                     ),
                     self._norm(out_channels),
-                    nn.ReLU(inplace=True),
+                    nn.ReLU(inplace=True)
                 )
             )
 

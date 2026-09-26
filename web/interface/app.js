@@ -1,4 +1,4 @@
-const DEFAULT_BOARD = "./data/bad_example/aligned_images5.npy";
+const DEFAULT_BOARD = "./data/bad_example/320XLF4CQH00445.npy";
 
 const COLORS = {
     pixel: "#cadef5",
@@ -236,10 +236,10 @@ function updateNavigationButtons() {
     const index = currentLinearIndex();
 
     if (dom.navUp) {
-        dom.navUp.disabled = disableAll || currentRow <= 0;
+        dom.navUp.disabled = disableAll || currentRow >= rows - 1;
     }
     if (dom.navDown) {
-        dom.navDown.disabled = disableAll || currentRow >= rows - 1;
+        dom.navDown.disabled = disableAll || currentRow <= 0;
     }
     if (dom.navLeft) {
         dom.navLeft.disabled = disableAll || index <= 0;
@@ -270,8 +270,10 @@ function updateMinimapGrid() {
         dom.minimapGrid.style.setProperty("--segment-aspect", aspect.toFixed(3));
     }
 
-    for (let r = 0; r < rows; r += 1) {
-        for (let c = 0; c < cols; c += 1) {
+    // Reverse both board axes, matching notebook 04. Images and API coordinates
+    // retain their source orientation; only the arrangement changes.
+    for (let r = rows - 1; r >= 0; r -= 1) {
+        for (let c = cols - 1; c >= 0; c -= 1) {
             const cell = document.createElement("button");
             cell.className = `segment-cell ${minimapClass(r, c)}`;
             if (manualDamaged(r, c)) {
@@ -371,7 +373,8 @@ function totalSegments() {
 }
 
 function currentLinearIndex() {
-    return state.currentRow * state.grid.cols + state.currentCol;
+    // Linear navigation follows display order, from top left to bottom right.
+    return totalSegments() - 1 - (state.currentRow * state.grid.cols + state.currentCol);
 }
 
 function setSegment(row, col) {
@@ -396,8 +399,9 @@ function moveToLinear(index) {
         return false;
     }
     const cols = state.grid.cols;
-    const row = Math.floor(index / cols);
-    const col = index % cols;
+    const sourceIndex = total - 1 - index;
+    const row = Math.floor(sourceIndex / cols);
+    const col = sourceIndex % cols;
     setSegment(row, col);
     return true;
 }
@@ -413,18 +417,18 @@ function movePreviousSegment() {
 }
 
 function moveUp() {
-    if (state.currentRow <= 0) {
-        return false;
-    }
-    setSegment(state.currentRow - 1, state.currentCol);
-    return true;
-}
-
-function moveDown() {
     if (state.currentRow >= state.grid.rows - 1) {
         return false;
     }
     setSegment(state.currentRow + 1, state.currentCol);
+    return true;
+}
+
+function moveDown() {
+    if (state.currentRow <= 0) {
+        return false;
+    }
+    setSegment(state.currentRow - 1, state.currentCol);
     return true;
 }
 
@@ -518,8 +522,8 @@ async function handleLoadBoard(options = {}) {
         }
         dom.boardPathInput.value = payload.board_path;
 
-        state.currentRow = 0;
-        state.currentCol = 0;
+        state.currentRow = state.grid.rows - 1;
+        state.currentCol = state.grid.cols - 1;
         updateUIAfterBoardChange();
         if (showStatus && !state.isRunningInspection) {
             dom.runStatus.textContent = `Loaded ${payload.board_path}`;
@@ -659,4 +663,10 @@ function bindEvents() {
 initializeTheme();
 bindEvents();
 updateNavigationButtons();
-handleLoadBoard();
+fetchJSON('/api/config').then((config) => {
+    dom.boardPathInput.value = config.board_path;
+    handleLoadBoard();
+}).catch((error) => {
+    console.error("Unable to load server configuration:", error);
+    handleLoadBoard();
+});

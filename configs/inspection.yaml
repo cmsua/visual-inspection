@@ -1,0 +1,23 @@
+inspection:
+    baseline_path: data/train/320XLF4CQH00001.npy
+    board_path: data/bad_example/320XLF4CQH00445.npy
+    data_root: data
+    checkpoint_path: logs/CNNAutoencoder/best/run_01.pt
+    skipped_segments_path: calibrations/skipped_segments.json
+    labels_path: calibrations/damaged_segments.json
+    calibration_dir: calibrations
+    output_dir: outputs/inspection
+    good_dirs: [data/train, data/val]
+    bad_dir: data/bad
+    test_dir: data/test
+    # The current saved checkpoint has 64 latent channels.
+    # Use {} to infer the CNN parameters directly from another checkpoint.
+    model:
+        latent_dim: 64
+        init_filters: 128
+        layers: [2, 2, 2]
+    device: null
+    # Remaining bad boards are reserved for analysis, selected by board identity.
+    bad_fraction: 0.5
+    normal_quantile: 0.99
+    seed: 42

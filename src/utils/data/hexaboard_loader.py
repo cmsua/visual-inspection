@@ -1,53 +1,61 @@
 import json
-from typing import Set, Tuple
+from typing import Optional, Set, Tuple
 
 import numpy as np
 
+from .board_contract import BOARD_SHAPE, GRID_SHAPE, SKIPPED_SEGMENTS_PATH, open_board, validate_coordinates
 
-def load_hexaboard(path: str, normalize: bool = True) -> np.ndarray:
+
+def load_hexaboard(
+    path: str,
+    normalize: bool = True,
+    expected_shape: Optional[Tuple[int, ...]] = BOARD_SHAPE
+) -> np.ndarray:
     """
-    Loads a hexaboard from a .npy file, converts color channels from BGR to RGB,
-    and optionally normalizes pixel values to [0, 1].
+    Load a stored BGR board as RGB, optionally scaled to `[0, 1]`.
 
     Parameters
     ----------
-    path: str
-        Path to the .npy file containing the hexaboard data.
-    normalize: bool, optional
-        If True, normalize pixel values to the [0, 1] range.
-    
+    path : str
+        NumPy board path.
+    normalize : bool, optional
+        Return float32 pixels instead of uint8 pixels.
+    expected_shape : Tuple[int, ...], optional
+        Required production shape; use an explicit smaller shape for fixtures.
+
     Returns
     -------
     np.ndarray
-        The processed hexaboard as a 5D numpy array (H_seg, V_seg, height, width, num_channels).
+        RGB board with shape `[rows, cols, height, width, 3]`.
     """
-    hexaboard = np.load(path)
-    hexaboard = hexaboard[..., ::-1].copy()  # convert from BGR to RGB
-
-    # Normalize pixel values to [0, 1] range if specified
+    board = open_board(path, expected_shape)
+    rgb = np.ascontiguousarray(board[..., ::-1])
     if normalize:
-        hexaboard = (hexaboard / 255.0).astype(np.float32)
+        return rgb.astype(np.float32) / 255.0
 
-    assert hexaboard.ndim == 5, "Hexaboard array must be 5D (H_seg, V_seg, height, width, num_channels)."
-
-    return hexaboard
+    return rgb
 
 
-def load_skipped_segments(path: str) -> Set[Tuple[int, int]]:
+def load_skipped_segments(
+    path: Optional[str] = None,
+    shape: Tuple[int, int] = GRID_SHAPE
+) -> Set[Tuple[int, int]]:
     """
-    Loads a JSON file containing indices of hexaboard segments to skip during processing.
+    Read and validate the canonical skip mask.
 
     Parameters
     ----------
-    path: str
-        Path to the JSON file containing the list of segments to skip.
+    path : str, optional
+        JSON path; defaults to the repository calibration mask.
+    shape : Tuple[int, int], optional
+        Grid bounds.
 
     Returns
     -------
     Set[Tuple[int, int]]
-        A set of tuples representing the (H_seg, V_seg) indices of segments to skip.
+        Zero-based skipped coordinates.
     """
-    with open(path, 'r') as f:
-        skipped_segments = json.load(f)
-        
-    return set(map(tuple, skipped_segments))
+    with open(path or SKIPPED_SEGMENTS_PATH, 'r', encoding='utf-8') as handle:
+        coordinates = json.load(handle)
+
+    return validate_coordinates(coordinates, shape)

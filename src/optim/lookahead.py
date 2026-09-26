@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -11,13 +11,13 @@ class Lookahead(Optimizer):
 
     Parameters
     ----------
-    optimizer: Optimizer
+    optimizer : Optimizer
         The inner optimizer.
-    la_steps: int
+    la_steps : int
         Number of lookahead steps.
-    la_alpha: float
+    la_alpha : float
         Linear interpolation factor. 1.0 recovers the inner optimizer.
-    pullback_momentum: str
+    pullback_momentum : str
         Change to inner optimizer momentum on interpolation update.
 
     .. References::
@@ -25,13 +25,14 @@ class Lookahead(Optimizer):
         [Lookahead Optimizer: k steps forward, 1 step back](https://arxiv.org/abs/1907.08610).
         *Advances in Neural Information Processing Systems*, 32, 2019.
     """
+
     def __init__(
         self,
         optimizer: Optimizer,
         la_steps: int = 5,
         la_alpha: float = 0.8,
         pullback_momentum: str = 'none'
-    ):
+    ) -> None:
         self.optimizer = optimizer
         self._la_step = 0  # counter for inner optimizer
         self.la_alpha = la_alpha
@@ -50,7 +51,7 @@ class Lookahead(Optimizer):
                 if self.pullback_momentum == 'pullback':
                     param_state['cached_mom'] = torch.zeros_like(p.data)
 
-    def __getstate__(self):
+    def __getstate__(self) -> Any:
         return {
             'state': self.state,
             'optimizer': self.optimizer,
@@ -60,7 +61,7 @@ class Lookahead(Optimizer):
             'pullback_momentum': self.pullback_momentum
         }
 
-    def zero_grad(self):
+    def zero_grad(self) -> None:
         self.optimizer.zero_grad()
 
     def get_la_step(self) -> int:
@@ -69,13 +70,10 @@ class Lookahead(Optimizer):
     def state_dict(self) -> Dict:
         return self.optimizer.state_dict()
 
-    def load_state_dict(self, state_dict: Dict):
+    def load_state_dict(self, state_dict: Dict) -> None:
         self.optimizer.load_state_dict(state_dict)
 
-    def _backup_and_load_cache(self):
-        """
-        Useful for performing evaluation on the slow weights (which typically generalize better)
-        """
+    def _backup_and_load_cache(self) -> None:
         for group in self.optimizer.param_groups:
             for p in group['params']:
                 param_state = self.state[p]
@@ -83,7 +81,7 @@ class Lookahead(Optimizer):
                 param_state['backup_params'].copy_(p.data)
                 p.data.copy_(param_state['cached_params'])
 
-    def _clear_and_load_backup(self):
+    def _clear_and_load_backup(self) -> None:
         for group in self.optimizer.param_groups:
             for p in group['params']:
                 param_state = self.state[p]
@@ -101,7 +99,7 @@ class Lookahead(Optimizer):
 
         Parameters
         ----------
-            closure: Callable, optional
+            closure : Callable, optional
                 A closure that reevaluates the model and returns the loss.
         """
         loss = self.optimizer.step(closure)
@@ -113,12 +111,16 @@ class Lookahead(Optimizer):
             for group in self.optimizer.param_groups:
                 for p in group['params']:
                     param_state = self.state[p]
-                    p.data.mul_(self.la_alpha).add_(param_state['cached_params'], alpha=1.0 - self.la_alpha)  # crucial line
+                    p.data.mul_(self.la_alpha).add_(
+                        param_state['cached_params'],
+                        alpha=1.0 - self.la_alpha
+                    )  # crucial line
                     param_state['cached_params'].copy_(p.data)
                     if self.pullback_momentum == 'pullback':
                         internal_momentum = self.optimizer.state[p]['momentum_buffer']
                         self.optimizer.state[p]['momentum_buffer'] = internal_momentum.mul_(self.la_alpha).add_(
-                            1.0 - self.la_alpha, param_state['cached_mom']
+                            1.0 - self.la_alpha,
+                            param_state['cached_mom']
                         )
                         param_state['cached_mom'] = self.optimizer.state[p]['momentum_buffer']
                     elif self.pullback_momentum == 'reset':

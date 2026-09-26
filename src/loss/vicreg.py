@@ -1,25 +1,25 @@
 from typing import Tuple
 
 import torch
-from torch import nn, Tensor
 import torch.nn.functional as F
+from torch import Tensor, nn
 
 
 class VICRegLoss(nn.Module):
     """
     PyTorch implementation of the Variance-Invariance-Covariance Regularization (VICReg) loss.
-    
+
     Parameters
     ----------
-    gamma: float
+    gamma : float
         Constant target value for the standard deviation.
-    epsilon: float
+    epsilon : float
         Small scalar preventing numerical instabilities.
-    lambda\_: float
+    lambda_ : float
         Weight for the invariance loss term.
-    mu: float
+    mu : float
         Weight for the variance loss term.
-    nu: float
+    nu : float
         Weight for the covariance loss term.
 
     .. References::
@@ -27,6 +27,7 @@ class VICRegLoss(nn.Module):
         [VICReg: Variance-Invariance-Covariance Regularization for Self-Supervised Learning](https://arxiv.org/abs/2105.04906).
         *arXiv preprint arXiv:2105.04906*, 2021.
     """
+
     def __init__(
         self,
         gamma: float = 1.0,
@@ -34,7 +35,7 @@ class VICRegLoss(nn.Module):
         lambda_: float = 25.0,
         mu: float = 25.0,
         nu: float = 1.0
-    ):
+    ) -> None:
         super(VICRegLoss, self).__init__()
         self.gamma = gamma
         self.epsilon = epsilon

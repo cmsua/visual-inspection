@@ -1,91 +1,56 @@
 from pathlib import Path
-from typing import Callable, Optional, Union
-
-import numpy as np
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from .hexaboard_loader import load_hexaboard, load_skipped_segments
+from .board_contract import BOARD_SHAPE, open_board, rgb_segment
+from .hexaboard_loader import load_skipped_segments
 
 
 class HexaboardDataset(Dataset):
     """
-    Dataset of hexaboard segments for a CNN autoencoder.
-    
-    This class loads hexaboard data from a directory
-    containing multiple .npy files, where each file represents one hexaboard.
-
-    Expected file structure:
-
-    root/
-        ├── board_001.npy  # (H_seg, V_seg, height, width, num_channels)
-        ├── board_002.npy
-        └── ...
+    Load RGB segments from one board or a directory of validated boards.
 
     Parameters
     ----------
-    root: str or Path
-        Root directory path containing .npy files, or a single .npy file path for backward compatibility.
-    skipped_segments_path: str, optional
-        Path to the JSON file containing the list of segments to skip.
-    transform: Callable, optional
-        A function/transformation that takes in a numpy array of shape
-        (height, width, num_channels) and returns a torch.Tensor of shape (num_channels, height, width).
-        E.g. `transforms.ToTensor()`.
-
-    Returns
-    -------
-    Tensor
-        A tensor of shape (num_channels, height, width) for each segment.
-        E.g. if each board has shape (8, 5, 1060, 1882, 3), then each segment will be of shape (3, 1060, 1882).
+    root : str or Path
+        A NumPy file or directory containing NumPy boards.
+    skipped_segments_path : str, optional
+        Skip mask; defaults to the canonical JSON.
+    transform : Callable, optional
+        Receives an RGB uint8 segment. Without a transform, returns normalized
+        float32 tensors with shape `[3, height, width]`.
+    expected_shape : Tuple[int, ...], optional
+        Board contract, with an explicit override for small test fixtures.
     """
+
     def __init__(
         self,
         root: Union[str, Path],
         skipped_segments_path: Optional[str] = None,
-        transform: Optional[Callable] = None
-    ):
-        super().__init__()
-        self.transform = transform
+        transform: Optional[Callable] = None,
+        expected_shape: Tuple[int, ...] = BOARD_SHAPE
+    ) -> None:
         self.root = Path(root)
+        self.transform = transform
+        self.expected_shape = tuple(expected_shape)
+        self.file_paths = [self.root] if self.root.is_file() else sorted(self.root.glob('*.npy'))
+        if not self.file_paths:
+            raise ValueError(f"No `.npy` boards found at `{self.root}`.")
 
-        # Find all .npy files in the directory
-        self.file_paths = sorted(list(self.root.glob('*.npy')))
-        if len(self.file_paths) == 0:
-            raise ValueError(f"No .npy files found in directory {self.root}")
+        for path in self.file_paths:
+            open_board(str(path), self.expected_shape)
 
-        # Load the first file to get dimensions
-        first_board = np.load(self.file_paths[0])
-        if first_board.ndim != 5:
-            raise ValueError(f"Expected 5D arrays (H_seg, V_seg, height, width, num_channels), got shape {first_board.shape}")
-        
-        self.h_seg, self.v_seg, self.height, self.width, self.num_channels = first_board.shape
+        self.h_seg, self.v_seg, self.height, self.width, self.num_channels = self.expected_shape
         self.num_boards = len(self.file_paths)
-
-        # Default skip set
-        default_skipped = {
-            (0, 0), (0, 4),
-            (1, 0), (1, 4),
-            (6, 0), (6, 4),
-            (7, 0), (7, 4),
-        }
-        self.skipped_segments = load_skipped_segments(skipped_segments_path) if skipped_segments_path is not None else default_skipped
-        
-        # Keep only valid indices inside the board shape
-        self.skipped_segments = {
-            (h, v) for (h, v) in self.skipped_segments if (0 <= h < self.h_seg and 0 <= v < self.v_seg)
-        }
-
-        # Precompute valid (h, v) segment indices per board
+        self.skipped_segments = load_skipped_segments(skipped_segments_path, self.expected_shape[:2])
         self.valid_segments = [
-            (h, v) for h in range(self.h_seg)
-            for v in range(self.v_seg)
-            if (h, v) not in self.skipped_segments
+            (row, col) for row in range(self.h_seg) for col in range(self.v_seg)
+            if (row, col) not in self.skipped_segments
         ]
-
-        if len(self.valid_segments) == 0:
+        if not self.valid_segments:
             raise ValueError("All segments are skipped; no data to load.")
 
         self.segs_per_board = len(self.valid_segments)
@@ -95,18 +60,14 @@ class HexaboardDataset(Dataset):
         return self.total
 
     def __getitem__(self, idx: int) -> Tensor:
-        # Calculate which board and which segment within that board
-        board_idx = idx // self.segs_per_board
-        seg_idx = idx % self.segs_per_board
-        h_idx, v_idx = self.valid_segments[seg_idx]
-        
-        # Load the hexaboard data and extract the segment
-        hexaboard = load_hexaboard(self.file_paths[board_idx], normalize=False)
-        segment = hexaboard[h_idx, v_idx]
+        if not 0 <= idx < self.total:
+            raise IndexError(f"Dataset index `{idx}` is out of range.")
 
-        if self.transform:
-            tensor = self.transform(segment)
-        else:
-            tensor = torch.from_numpy(segment).permute(2, 0, 1).float()
+        board_idx, segment_idx = divmod(idx, self.segs_per_board)
+        row, col = self.valid_segments[segment_idx]
+        board = open_board(str(self.file_paths[board_idx]), self.expected_shape)
+        segment = rgb_segment(board, row, col, normalize=False)
+        if self.transform is not None:
+            return self.transform(segment)
 
-        return tensor
+        return torch.from_numpy(segment).permute(2, 0, 1).float() / 255.0

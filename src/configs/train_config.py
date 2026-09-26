@@ -1,13 +1,26 @@
 from dataclasses import dataclass, field
 from typing import Dict, List
 
+
 @dataclass
 class TrainConfig:
+    """
+    Optimizer, scheduling, validation, and artifact settings for training.
+
+    Parameters
+    ----------
+    scheduler_interval : str
+        Advance the scheduler per optimizer step, epoch, or validation event.
+    eval_strategy : str
+        Run validation at epoch boundaries or configured step intervals.
+    """
+
     batch_size: int = 8
     criterion: Dict = field(default_factory=lambda: {'name': 'cross_entropy_loss', 'kwargs': {}})
     optimizer: Dict = field(default_factory=lambda: {'name': 'adam', 'kwargs': {'lr': 1e-3, 'eps': 1e-4}})
     optimizer_wrapper: Dict = None
     scheduler: Dict = None
+    scheduler_interval: str = 'validation'
     callbacks: List = None
     num_epochs: int = 20
     start_epoch: int = 0
@@ -25,5 +38,5 @@ class TrainConfig:
     pin_memory: bool = False
 
     @classmethod
-    def from_dict(cls, d: Dict):
+    def from_dict(cls, d: Dict) -> 'TrainConfig':
         return cls(**d)

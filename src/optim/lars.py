@@ -1,5 +1,5 @@
-from typing import List, Dict
 from contextlib import contextmanager
+from typing import Any, Dict, List
 
 from torch.optim import Optimizer
 
@@ -10,11 +10,11 @@ class LARS(Optimizer):
 
     Parameters
     ----------
-    optimizer: Optimizer
+    optimizer : Optimizer
         The inner optimizer.
-    eps: float
+    eps : float
         Term added to the denominator to improve numerical stability.
-    eta: float
+    eta : float
         LARS coefficient as used in the LARS paper.
 
     .. References::
@@ -26,26 +26,24 @@ class LARS(Optimizer):
         [torchlars, A LARS implementation in PyTorch](https://github.com/kakaobrain/torchlars).
         *GitHub*, 2019.
     """
-    def __init__(self, optimizer: Optimizer, eps: float = 1e-8, eta: float = 0.001):
+
+    def __init__(self, optimizer: Optimizer, eps: float = 1e-8, eta: float = 0.001) -> None:
         if eps < 0.0:
             raise ValueError(f"Invalid epsilon value: {eps}")
+
         if eta < 0.0:
             raise ValueError(f"Invalid trust coefficient: {eta}")
-        
+
         self.optim = optimizer
         self.eps = eps
         self.eta = eta
 
-    def __getstate__(self):
-        state = {
-            'eps': self.eps,
-            'eta': self.eta,
-            'optim_state': self.optim.state_dict()
-        }
-        
+    def __getstate__(self) -> Any:
+        state = {'eps': self.eps, 'eta': self.eta, 'optim_state': self.optim.state_dict()}
+
         return state
 
-    def __setstate__(self, state: Dict):
+    def __setstate__(self, state: Dict) -> None:
         self.eps = state['eps']
         self.eta = state['eta']
         self.optim.load_state_dict(state['optim_state'])
@@ -57,17 +55,17 @@ class LARS(Optimizer):
     def state_dict(self) -> Dict:
         return self.optim.state_dict()
 
-    def load_state_dict(self, state_dict: Dict):
+    def load_state_dict(self, state_dict: Dict) -> None:
         self.optim.load_state_dict(state_dict)
 
-    def zero_grad(self):
+    def zero_grad(self) -> None:
         self.optim.zero_grad()
 
-    def add_param_group(self, param_group: Dict):
+    def add_param_group(self, param_group: Dict) -> None:
         self.optim.add_param_group(param_group)
 
     @contextmanager
-    def hide_weight_decays(self):
+    def hide_weight_decays(self) -> Any:
         # Temporarily set weight_decay to 0 in each param group and yield the original values
         weight_decays = []
         for group in self.optim.param_groups:
@@ -84,7 +82,7 @@ class LARS(Optimizer):
     def compute_adaptive_lr(self, param_norm: float, grad_norm: float, weight_decay: float) -> float:
         return self.eta * param_norm / (grad_norm + weight_decay * param_norm + self.eps)
 
-    def apply_adaptive_lrs(self, weight_decays: List):
+    def apply_adaptive_lrs(self, weight_decays: List) -> None:
         # Iterate over each parameter group and scale its gradients.
         for group, weight_decay in zip(self.optim.param_groups, weight_decays):
             for p in group['params']:
@@ -105,9 +103,9 @@ class LARS(Optimizer):
                 # Scale gradient by the computed adaptive learning rate
                 p.grad.data.mul_(adaptive_lr)
 
-    def step(self, *args, **kwargs) -> float:
+    def step(self, *args: Any, **kwargs: Any) -> float:
         # First hide weight decays, apply adaptive learning rates, then call the base optimizer
         with self.hide_weight_decays() as weight_decays:
             self.apply_adaptive_lrs(weight_decays)
-            
+
             return self.optim.step(*args, **kwargs)

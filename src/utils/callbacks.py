@@ -1,20 +1,25 @@
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from src.engine import Trainer
-    
+
 
 class BaseCallback:
     def on_train_begin(self, trainer: 'Trainer', logs: Optional[Dict[str, float]] = None) -> None:
         pass
+
     def on_train_end(self, trainer: 'Trainer', logs: Optional[Dict[str, float]] = None) -> None:
         pass
+
     def on_epoch_begin(self, epoch: int, trainer: 'Trainer', logs: Optional[Dict[str, float]] = None) -> None:
         pass
+
     def on_epoch_end(self, epoch: int, trainer: 'Trainer', logs: Optional[Dict[str, float]] = None) -> None:
         pass
+
     def on_batch_begin(self, batch: int, trainer: 'Trainer', logs: Optional[Dict[str, float]] = None) -> None:
         pass
+
     def on_batch_end(self, batch: int, trainer: 'Trainer', logs: Optional[Dict[str, float]] = None) -> None:
         pass
 
@@ -42,6 +47,7 @@ class EarlyStopping(BaseCallback):
     def _is_improvement(self, current: float) -> bool:
         if self.best_score is None:
             return True
+
         if self.mode == 'min':
             return current < self.best_score - self.min_delta
         elif self.mode == 'max':
@@ -49,15 +55,10 @@ class EarlyStopping(BaseCallback):
         else:
             raise ValueError(f"Mode '{self.mode}' not supported.")
 
-    def on_epoch_end(
-        self,
-        epoch: int,
-        trainer: 'Trainer',
-        logs: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def on_epoch_end(self, epoch: int, trainer: 'Trainer', logs: Optional[Dict[str, Any]] = None) -> None:
         if logs is None:
             return
-        
+
         current = logs.get(self.monitor)
         if current is None:
             return
@@ -80,6 +81,6 @@ class EarlyStopping(BaseCallback):
 
 
 CALLBACK_REGISTRY = {
-    'early_stopping': EarlyStopping,
+    'early_stopping': EarlyStopping
     # Add more callbacks here as needed
 }

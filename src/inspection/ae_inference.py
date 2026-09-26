@@ -6,6 +6,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from ..utils.data import load_skipped_segments
+from ..utils.data.board_contract import validate_coordinates
+
 
 @torch.no_grad()
 def autoencoder_inference(
@@ -17,19 +20,19 @@ def autoencoder_inference(
 ) -> List[Tuple[int, int]]:
     """
     Compares the autoencoder's reconstruction of hexaboard segments against the original segments and
-    flags every (H_seg_idx, V_seg_idx) segment whose reconstruction (1 - SSIM) is above `threshold`.
+    flags every (H_seg_idx, V_seg_idx) segment whose reconstruction MAE is above `threshold`.
 
     Parameters
     ----------
-    hexaboard: np.ndarray
-        5D array with shape (H_seg, V_seg, height, width, num_channels) representing a single hexaboard.
-    threshold: float
+    hexaboard : np.ndarray
+        5D array with shape `[H_seg, V_seg, height, width, num_channels]` representing a single hexaboard.
+    threshold : float
         The SSIM threshold below which segments are flagged.
-    model: nn.Module
+    model : nn.Module
         The autoencoder model to use for inference.
-    device: torch.device
+    device : torch.device
         The device to run the inference on.
-    skipped_segments: Set[Tuple[int, int]], optional
+    skipped_segments : Set[Tuple[int, int]], optional
         A set of (H_seg, V_seg) tuples representing the segments to skip.
 
     Returns
@@ -41,7 +44,7 @@ def autoencoder_inference(
         raise ValueError(f"Expected 5D array for hexaboard, got {hexaboard.ndim}D array instead.")
 
     H_seg, V_seg, _, _, _ = hexaboard.shape
-    
+
     # Set the model to evaluation mode
     model.eval()
 
@@ -49,12 +52,11 @@ def autoencoder_inference(
     hexaboard = torch.tensor(hexaboard).permute(0, 1, 4, 2, 3)
     flagged_segments = []
     if skipped_segments is None:
-        skipped_segments = {
-            (0, 0), (0, 4),
-            (1, 0), (1, 4),
-            (6, 0), (6, 4),
-            (7, 0), (7, 4),
-        }
+        skipped_segments = load_skipped_segments(shape=(H_seg, V_seg))
+
+    skipped_segments = validate_coordinates(skipped_segments, (H_seg, V_seg))
+    if threshold.shape != (H_seg, V_seg) or not np.isfinite(threshold).all():
+        raise ValueError("Threshold shape must match the grid and contain finite scores.")
 
     for h in range(H_seg):
         for v in range(V_seg):

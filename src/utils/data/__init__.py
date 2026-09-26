@@ -1,3 +1,4 @@
+from .board_contract import rgb_segment
 from .hexaboard_dataset import HexaboardDataset
 from .hexaboard_loader import load_hexaboard, load_skipped_segments
 from .segment_labeler import (

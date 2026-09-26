@@ -13,27 +13,26 @@ class CNNAutoencoder(nn.Module):
     def __init__(
         self,
         config: Optional[AutoencoderConfig] = None,
-        # Parameters below can override config if supplied explicitly
         height: Optional[int] = None,
         width: Optional[int] = None,
         latent_dim: Optional[int] = None,
         init_filters: Optional[int] = None,
-        layers: Optional[List[int]] = None,
-    ):
+        layers: Optional[List[int]] = None
+    ) -> None:
         """
         Parameters
         ----------
-        config: AutoencoderConfig, optional
+        config : AutoencoderConfig, optional
             Configuration object containing model parameters.
-        height: int, optional
+        height : int, optional
             Height of the input images.
-        width: int, optional
+        width : int, optional
             Width of the input images.
-        latent_dim: int, optional
+        latent_dim : int, optional
             Dimension of the latent (bottleneck) vector.
-        init_filters: int, optional
+        init_filters : int, optional
             Number of filters in the first convolutional layer (stem).
-        layers: List[int], optional
+        layers : List[int], optional
             Number of Conv-GN-ReLU blocks in each encoder stage.
         """
         super().__init__()
@@ -52,7 +51,7 @@ class CNNAutoencoder(nn.Module):
             self.layers = layers if layers is not None else [2, 2, 2]
 
         if len(self.layers) != 3:
-            raise ValueError('CNNAutoencoder expects exactly three encoder stages.')
+            raise ValueError("CNNAutoencoder expects exactly three encoder stages.")
 
         self.norm_layer = lambda num_channels: nn.GroupNorm(1, num_channels)
 
@@ -67,7 +66,7 @@ class CNNAutoencoder(nn.Module):
             shapes['stage1_conv'],
             shapes['stage1_postpool'],
             shapes['stage2_conv'],
-            shapes['stage2_postpool'],
+            shapes['stage2_postpool']
         ]
 
         self.bottleneck_height, self.bottleneck_width = shapes['stage2_postpool']
@@ -79,7 +78,7 @@ class CNNAutoencoder(nn.Module):
             kernel_size=self.stem_kernel,
             stride=self.stem_stride,
             padding=self.stem_padding,
-            bias=True,
+            bias=True
         )
         self.bn1 = self.norm_layer(self.init_filters)
         self.relu = nn.ReLU(inplace=True)
@@ -94,7 +93,7 @@ class CNNAutoencoder(nn.Module):
                     out_channels=encoder_channels[0],
                     blocks=self.layers[0],
                     stride=1,
-                    pooling=False,
+                    pooling=False
                 ),
                 self._make_stage(
                     in_channels=encoder_channels[0],
@@ -102,7 +101,7 @@ class CNNAutoencoder(nn.Module):
                     blocks=self.layers[1],
                     stride=2,
                     pooling=True,
-                    pool_padding=0,
+                    pool_padding=0
                 ),
                 self._make_stage(
                     in_channels=encoder_channels[1],
@@ -110,8 +109,8 @@ class CNNAutoencoder(nn.Module):
                     blocks=self.layers[2],
                     stride=2,
                     pooling=True,
-                    pool_padding=1,
-                ),
+                    pool_padding=1
+                )
             ]
         )
 
@@ -124,7 +123,7 @@ class CNNAutoencoder(nn.Module):
                     stride=(2, 2),
                     padding=(1, 1),
                     input_size=shapes['stage2_postpool'],
-                    target_size=shapes['stage2_conv'],
+                    target_size=shapes['stage2_conv']
                 ),
                 self._make_decoder_layer(
                     in_channels=encoder_channels[1],
@@ -133,7 +132,7 @@ class CNNAutoencoder(nn.Module):
                     stride=(2, 2),
                     padding=(1, 1),
                     input_size=shapes['stage2_conv'],
-                    target_size=shapes['stage1_postpool'],
+                    target_size=shapes['stage1_postpool']
                 ),
                 self._make_decoder_layer(
                     in_channels=encoder_channels[1],
@@ -142,7 +141,7 @@ class CNNAutoencoder(nn.Module):
                     stride=(2, 2),
                     padding=(0, 0),
                     input_size=shapes['stage1_postpool'],
-                    target_size=shapes['stage1_conv'],
+                    target_size=shapes['stage1_conv']
                 ),
                 self._make_decoder_layer(
                     in_channels=encoder_channels[0],
@@ -151,7 +150,7 @@ class CNNAutoencoder(nn.Module):
                     stride=(2, 2),
                     padding=(1, 1),
                     input_size=shapes['stage1_conv'],
-                    target_size=shapes['post_stem_pool'],
+                    target_size=shapes['post_stem_pool']
                 ),
                 self._make_decoder_layer(
                     in_channels=encoder_channels[0],
@@ -160,7 +159,7 @@ class CNNAutoencoder(nn.Module):
                     stride=(2, 2),
                     padding=(1, 1),
                     input_size=shapes['post_stem_pool'],
-                    target_size=shapes['stem'],
+                    target_size=shapes['stem']
                 ),
                 nn.Sequential(
                     nn.ConvTranspose2d(
@@ -174,11 +173,11 @@ class CNNAutoencoder(nn.Module):
                             target_size=(self.height, self.width),
                             kernel_size=self.stem_kernel,
                             stride=self.stem_stride,
-                            padding=self.stem_padding,
+                            padding=self.stem_padding
                         ),
-                        bias=True,
+                        bias=True
                     )
-                ),
+                )
             ]
         )
 
@@ -197,15 +196,13 @@ class CNNAutoencoder(nn.Module):
         target_size: Tuple[int, int],
         kernel_size: Tuple[int, int],
         stride: Tuple[int, int],
-        padding: Tuple[int, int],
+        padding: Tuple[int, int]
     ) -> Tuple[int, int]:
         base_height = ((input_size[0] - 1) * stride[0]) - (2 * padding[0]) + kernel_size[0]
         base_width = ((input_size[1] - 1) * stride[1]) - (2 * padding[1]) + kernel_size[1]
         output_padding = (target_size[0] - base_height, target_size[1] - base_width)
         if any(value not in (0, 1) for value in output_padding):
-            raise ValueError(
-                f'Invalid output padding from {input_size} to {target_size}: {output_padding}'
-            )
+            raise ValueError(f"Invalid output padding from {input_size} to {target_size}: {output_padding}")
 
         return output_padding
 
@@ -214,34 +211,34 @@ class CNNAutoencoder(nn.Module):
             self.height,
             kernel_size=self.stem_kernel[0],
             stride=self.stem_stride[0],
-            padding=self.stem_padding[0],
+            padding=self.stem_padding[0]
         )
         stem_width = self._conv_out_size(
             self.width,
             kernel_size=self.stem_kernel[1],
             stride=self.stem_stride[1],
-            padding=self.stem_padding[1],
+            padding=self.stem_padding[1]
         )
 
         post_stem_pool = (
             self._pool_out_size(stem_height, kernel_size=3, stride=2, padding=1),
-            self._pool_out_size(stem_width, kernel_size=3, stride=2, padding=1),
+            self._pool_out_size(stem_width, kernel_size=3, stride=2, padding=1)
         )
         stage1_conv = (
             self._conv_out_size(post_stem_pool[0], kernel_size=3, stride=2, padding=1),
-            self._conv_out_size(post_stem_pool[1], kernel_size=3, stride=2, padding=1),
+            self._conv_out_size(post_stem_pool[1], kernel_size=3, stride=2, padding=1)
         )
         stage1_postpool = (
             self._pool_out_size(stage1_conv[0], kernel_size=2, stride=2, padding=0),
-            self._pool_out_size(stage1_conv[1], kernel_size=2, stride=2, padding=0),
+            self._pool_out_size(stage1_conv[1], kernel_size=2, stride=2, padding=0)
         )
         stage2_conv = (
             self._conv_out_size(stage1_postpool[0], kernel_size=3, stride=2, padding=1),
-            self._conv_out_size(stage1_postpool[1], kernel_size=3, stride=2, padding=1),
+            self._conv_out_size(stage1_postpool[1], kernel_size=3, stride=2, padding=1)
         )
         stage2_postpool = (
             self._pool_out_size(stage2_conv[0], kernel_size=2, stride=2, padding=1),
-            self._pool_out_size(stage2_conv[1], kernel_size=2, stride=2, padding=1),
+            self._pool_out_size(stage2_conv[1], kernel_size=2, stride=2, padding=1)
         )
 
         return {
@@ -250,7 +247,7 @@ class CNNAutoencoder(nn.Module):
             'stage1_conv': stage1_conv,
             'stage1_postpool': stage1_postpool,
             'stage2_conv': stage2_conv,
-            'stage2_postpool': stage2_postpool,
+            'stage2_postpool': stage2_postpool
         }
 
     def _make_stage(
@@ -260,7 +257,7 @@ class CNNAutoencoder(nn.Module):
         blocks: int,
         stride: int,
         pooling: bool = False,
-        pool_padding: int = 0,
+        pool_padding: int = 0
     ) -> nn.Sequential:
         layers = [
             nn.Sequential(
@@ -270,10 +267,10 @@ class CNNAutoencoder(nn.Module):
                     kernel_size=3,
                     stride=stride,
                     padding=1,
-                    bias=True,
+                    bias=True
                 ),
                 self.norm_layer(out_channels),
-                nn.ReLU(inplace=True),
+                nn.ReLU(inplace=True)
             )
         ]
 
@@ -286,10 +283,10 @@ class CNNAutoencoder(nn.Module):
                         kernel_size=3,
                         stride=1,
                         padding=1,
-                        bias=True,
+                        bias=True
                     ),
                     self.norm_layer(out_channels),
-                    nn.ReLU(inplace=True),
+                    nn.ReLU(inplace=True)
                 )
             )
 
@@ -306,7 +303,7 @@ class CNNAutoencoder(nn.Module):
         stride: Tuple[int, int],
         padding: Tuple[int, int],
         input_size: Tuple[int, int],
-        target_size: Tuple[int, int],
+        target_size: Tuple[int, int]
     ) -> nn.Sequential:
         return nn.Sequential(
             nn.ConvTranspose2d(
@@ -320,12 +317,12 @@ class CNNAutoencoder(nn.Module):
                     target_size=target_size,
                     kernel_size=kernel_size,
                     stride=stride,
-                    padding=padding,
+                    padding=padding
                 ),
-                bias=True,
+                bias=True
             ),
             self.norm_layer(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True)
         )
 
     def _forward_shapes(self, x: Tensor) -> List[Tuple[int, int]]:
@@ -362,7 +359,7 @@ class CNNAutoencoder(nn.Module):
             x = layer(x)
 
         assert x.shape == (batch_size, channels, height, width), (
-            f'Output shape mismatch: {x.shape} != {(batch_size, channels, height, width)}'
+            f"Output shape mismatch: {x.shape} != {(batch_size, channels, height, width)}"
         )
 
         return x
