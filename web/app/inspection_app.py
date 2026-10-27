@@ -106,8 +106,14 @@ class InspectionApp:
             snapshot.write_text(yaml.safe_dump({'inspection': settings}), encoding='utf-8')
             if os.name == 'nt':
                 command = [
-                    sys.executable, '-m', 'scripts.inspect', '--config-path',
-                    str(snapshot), '-n', str(board_path), '--force'
+                    sys.executable,
+                    '-m',
+                    'scripts.inspect',
+                    '--config-path',
+                    str(snapshot),
+                    '-n',
+                    str(board_path),
+                    '--force'
                 ]
             else:
                 command = ['bash', str(REPO_ROOT / 'jobs' / 'main.sh'), str(board_path)]

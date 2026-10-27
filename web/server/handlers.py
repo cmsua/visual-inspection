@@ -145,7 +145,7 @@ class InspectionRequestHandler(SimpleHTTPRequestHandler):
     def _send_json(self, payload: Dict[str, object], status: HTTPStatus = HTTPStatus.OK) -> None:
         encoded = json.dumps(payload).encode('utf-8')
         self.send_response(status)
-        self.send_header('Content-Type', "application/json; charset=utf-8")
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(encoded)))
         self.end_headers()
         self.wfile.write(encoded)
