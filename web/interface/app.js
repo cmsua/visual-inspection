@@ -9,6 +9,7 @@ const COLORS = {
 };
 
 const state = {
+    reviewContext: null,
     boardPath: DEFAULT_BOARD,
     grid: { rows: 0, cols: 0 },
     segmentShape: { height: 0, width: 0, channels: 0 },
@@ -33,6 +34,10 @@ const THEME_STORAGE_KEY = "vi-theme-mode";
 
 const dom = {
     boardPathInput: document.getElementById("board-path"),
+    boardFolder: document.getElementById("board-folder"),
+    boardSelect: document.getElementById("board-select"),
+    refreshBoards: document.getElementById("refresh-boards"),
+    boardListStatus: document.getElementById("board-list-status"),
     loadBoardBtn: document.getElementById("load-board"),
     runButton: document.getElementById("run-inspection"),
     runStatus: document.getElementById("run-status"),
@@ -53,6 +58,8 @@ const dom = {
     themeToggle: document.getElementById("theme-toggle"),
 };
 
+let boardListToken = 0;
+let boardFetchToken = 0;
 let segmentFetchToken = 0;
 let activeRunToken = 0;
 
@@ -167,6 +174,7 @@ function isAEFlagged(row, col) {
 }
 
 function minimapClass(row, col) {
+    if (state.inspection.pw_flags[row]?.[col] === null) return "status-uninspected";
     if (isSkipped(row, col)) {
         return "status-skipped";
     }
@@ -223,9 +231,10 @@ function updateFlagCheckboxes() {
 }
 
 function updateManualControls() {
-    const disabled = isSkipped(state.currentRow, state.currentCol);
+    const disabled = !state.grid.rows || isSkipped(state.currentRow, state.currentCol);
     dom.markDamagedBtn.disabled = disabled;
     dom.markOkBtn.disabled = disabled;
+    document.getElementById("mark-uncertain").disabled = disabled;
 }
 
 function updateNavigationButtons() {
@@ -276,6 +285,10 @@ function updateMinimapGrid() {
         for (let c = cols - 1; c >= 0; c -= 1) {
             const cell = document.createElement("button");
             cell.className = `segment-cell ${minimapClass(r, c)}`;
+            if (state.reviewContext?.reviews[`${r},${c}`]?.decision === "uncertain") {
+                cell.classList.add("human-uncertain");
+                cell.title += " — Human: uncertain";
+            }
             if (manualDamaged(r, c)) {
                 cell.classList.add("manual-damaged");
             } else if (state.visitedSegments.has(segmentKey(r, c))) {
@@ -333,6 +346,8 @@ function updateManualDamagedSet(damagedList) {
 }
 
 function renderSegmentState() {
+    const review = state.reviewContext?.reviews[`${state.currentRow},${state.currentCol}`];
+    document.getElementById("review-decision").textContent = review ? `Human: ${review.decision} — ${review.reviewer}` : "Human: unreviewed";
     updateSegmentLabel();
     updateFlagCheckboxes();
     updateManualControls();
@@ -347,6 +362,7 @@ function updateUIAfterBoardChange() {
 }
 
 function setProgressActive(active) {
+    dom.boardSelect.disabled = active || !dom.boardSelect.options.length || dom.boardSelect.options.length === 1;
     if (!dom.runProgress) {
         return;
     }
@@ -454,6 +470,7 @@ function advanceAfterLabel() {
 }
 
 function handleKeyboardNavigation(event) {
+    if (document.getElementById("inspection-panel").hidden) return;
     const { key } = event;
     if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key)) {
         return;
@@ -466,7 +483,7 @@ function handleKeyboardNavigation(event) {
     const target = event.target;
     if (target) {
         const tag = target.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) {
             return;
         }
     }
@@ -502,14 +519,20 @@ function handleKeyboardNavigation(event) {
 }
 
 async function handleLoadBoard(options = {}) {
+    const token = ++boardFetchToken;
     const { showStatus = true } = options;
     const requestedPath = dom.boardPathInput.value.trim() || DEFAULT_BOARD;
     try {
         if (showStatus) {
             dom.runStatus.textContent = "Loading board...";
         }
-        const params = new URLSearchParams({ path: requestedPath });
-        const payload = await fetchJSON(`/api/board?${params.toString()}`);
+        const params = new URLSearchParams({ path: requestedPath, inspect: String(options.inspect === true) });
+        const payload = options.payload || await fetchJSON(`/api/board?${params.toString()}`);
+        if (token !== boardFetchToken) return;
+        const previousReview = state.reviewContext;
+        state.reviewContext = payload.review_context || null;
+        document.getElementById("review-banner").hidden = !state.reviewContext;
+        document.getElementById("mark-uncertain").hidden = !state.reviewContext;
         const previousBoardPath = state.boardPath;
         state.boardPath = payload.board_path;
         state.grid.rows = payload.grid_shape.rows;
@@ -517,18 +540,24 @@ async function handleLoadBoard(options = {}) {
         state.segmentShape = payload.segment_shape;
         state.inspection = payload.inspection;
         updateManualDamagedSet(payload.damaged_segments);
-        if (previousBoardPath !== state.boardPath) {
+        if (previousBoardPath !== state.boardPath || previousReview || state.reviewContext) {
             state.visitedSegments.clear();
         }
+        if (state.reviewContext) applyReviews(state.reviewContext.reviews);
         dom.boardPathInput.value = payload.board_path;
+        dom.boardSelect.value = payload.board_path;
+        if (dom.boardSelect.selectedIndex < 0) dom.boardSelect.value = "";
 
         state.currentRow = state.grid.rows - 1;
         state.currentCol = state.grid.cols - 1;
         updateUIAfterBoardChange();
         if (showStatus && !state.isRunningInspection) {
-            dom.runStatus.textContent = `Loaded ${payload.board_path}`;
+            dom.runStatus.textContent = payload.inspection.metadata?.inspection_status === "not_run"
+                ? "Board loaded for manual review. Automated inspection has not run."
+                : `Loaded ${payload.board_path}`;
         }
     } catch (error) {
+        if (token !== boardFetchToken) return;
         console.error("Failed to load board:", error);
         dom.runStatus.textContent = `Error loading board: ${error.message ?? error}`;
     }
@@ -543,7 +572,7 @@ async function handleRunInspection() {
         setProgressActive(true);
         const payload = await fetchJSON("/api/run", {
             method: "POST",
-            body: JSON.stringify({ path: state.boardPath }),
+            body: JSON.stringify({ path: dom.boardPathInput.value.trim() || state.boardPath }),
         });
         if (activeRunToken !== runToken) {
             return;
@@ -551,7 +580,7 @@ async function handleRunInspection() {
         const completionMessage = payload.stdout.trim()
             ? `Inspection complete.\n${payload.stdout.trim()}`
             : "Inspection complete.";
-        await handleLoadBoard({ showStatus: false });
+        await handleLoadBoard({ showStatus: false, inspect: true });
         dom.runStatus.textContent = completionMessage;
         finalizeInspectionRun(runToken);
     } catch (error) {
@@ -564,6 +593,7 @@ async function handleRunInspection() {
 }
 
 async function handleManualLabel(isDamaged) {
+    if (state.reviewContext) return saveReview(isDamaged ? "damaged" : "ok");
     try {
         dom.runStatus.textContent = isDamaged ? "Marking segment as damaged..." : "Marking segment as OK...";
         const response = await fetchJSON("/api/label", {
@@ -595,6 +625,18 @@ async function handleManualLabel(isDamaged) {
 // Event bindings
 
 function bindEvents() {
+    dom.refreshBoards.addEventListener("click", loadBoardList);
+    dom.boardFolder.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            loadBoardList();
+        }
+    });
+    dom.boardSelect.addEventListener("change", () => {
+        if (!dom.boardSelect.value || state.isRunningInspection) return;
+        dom.boardPathInput.value = dom.boardSelect.value;
+        handleLoadBoard();
+    });
     dom.loadBoardBtn.addEventListener("click", () => {
         handleLoadBoard();
     });
@@ -650,7 +692,7 @@ function bindEvents() {
     dom.boardPathInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
             event.preventDefault();
-            handleLoadBoard();
+            if (!document.getElementById("inspection-panel").hidden) handleLoadBoard();
         }
     });
 
@@ -663,10 +705,86 @@ function bindEvents() {
 initializeTheme();
 bindEvents();
 updateNavigationButtons();
+updateManualControls();
 fetchJSON('/api/config').then((config) => {
     dom.boardPathInput.value = config.board_path;
-    handleLoadBoard();
+    loadBoardList();
+    dom.runStatus.textContent = "Load a board to review its segments. Run inspection when you need automated scores.";
 }).catch((error) => {
     console.error("Unable to load server configuration:", error);
-    handleLoadBoard();
+    dom.runStatus.textContent = "Unable to load server configuration.";
 });
+
+function applyReviews(reviews) {
+    state.reviewContext.reviews = reviews;
+    state.damagedSegments.clear();
+    state.visitedSegments.clear();
+    for (const [key, review] of Object.entries(reviews)) {
+        const [row, col] = key.split(",").map(Number);
+        if (review.decision === "damaged") state.damagedSegments.add(segmentKey(row, col));
+        if (review.decision === "ok") state.visitedSegments.add(segmentKey(row, col));
+    }
+    const uncertain = Object.values(reviews).filter(value => value.decision === "uncertain").length;
+    const total = state.inspection.pw_flags.flat().filter(value => value !== -1).length;
+    document.getElementById("review-summary").textContent = `${Object.keys(reviews).length}/${total} segments reviewed; ${uncertain} uncertain. Evidence freshness: ${state.reviewContext.freshness.status}. Review is tied to this saved snapshot; current images may have changed since it was produced.`;
+}
+
+async function saveReview(decision) {
+    const context = state.reviewContext;
+    if (!context) return;
+    try {
+        const response = await fetchJSON("/api/chat/review", {
+            method: "POST",
+            body: JSON.stringify({
+                session_id: context.session_id, result_id: context.result_id,
+                row: state.currentRow, col: state.currentCol, decision,
+                reviewer: document.getElementById("reviewer").value.trim()
+            })
+        });
+        applyReviews(response.reviews);
+        updateMinimapGrid();
+        renderSegmentState();
+        dom.runStatus.textContent = `Human decision saved: ${decision}.`;
+        advanceAfterLabel();
+    } catch (error) {
+        dom.runStatus.textContent = error.message;
+    }
+}
+
+document.getElementById("mark-uncertain").addEventListener("click", () => saveReview("uncertain"));
+window.addEventListener("inspection:evidence", async event => {
+    await handleLoadBoard({payload: event.detail.payload, showStatus: event.detail.showStatus !== false});
+    if (event.detail.row !== undefined) setSegment(event.detail.row, event.detail.col);
+});
+
+window.addEventListener("inspection:activity", event => {
+    const {job, running, text} = event.detail;
+    state.isRunningInspection = running;
+    setProgressActive(running);
+    dom.runButton.disabled = running;
+    dom.loadBoardBtn.disabled = running;
+    document.getElementById("inspection-panel").setAttribute("aria-busy", String(running));
+    dom.runStatus.textContent = `${job.command} — ${text}`;
+});
+
+async function loadBoardList() {
+    const token = ++boardListToken;
+    const folder = dom.boardFolder.value.trim();
+    dom.boardSelect.disabled = true;
+    dom.boardSelect.replaceChildren(new Option("Select a board…", ""));
+    dom.boardListStatus.textContent = "Listing boards…";
+    try {
+        const params = new URLSearchParams();
+        if (folder) params.set("folder", folder);
+        const result = await fetchJSON(`/api/boards?${params}`);
+        if (token !== boardListToken) return;
+        dom.boardFolder.value = result.folder;
+        for (const board of result.boards) dom.boardSelect.add(new Option(board.name, board.path));
+        dom.boardSelect.value = dom.boardPathInput.value;
+        if (dom.boardSelect.selectedIndex < 0) dom.boardSelect.value = "";
+        dom.boardSelect.disabled = state.isRunningInspection || !result.boards.length;
+        dom.boardListStatus.textContent = result.boards.length ? `${result.boards.length} boards` : "No NPY files in this folder.";
+    } catch (error) {
+        if (token === boardListToken) dom.boardListStatus.textContent = error.message;
+    }
+}

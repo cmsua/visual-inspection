@@ -1,0 +1,11 @@
+# Paths resolve relative to this YAML file. Existing HEPTAPOD state is read only.
+agent_preflight:
+  heptapod_repo: ../../heptapod
+  heptapod_python: ../../heptapod/venv/bin/python
+  state_config: ../../heptapod/.toolbase/config/heptapod.yaml
+  inspection_config: ../../heptapod/examples/visual_inspection/artifacts/main-demo-v1/configs/inspection.yaml
+  board_path: null # Use the board already selected in the inspection YAML.
+  output_dir: ../outputs/agent_preflight
+  codex: codex
+  model: null # Reuse the model configured for the existing Codex login.
+  timeout_seconds: 180

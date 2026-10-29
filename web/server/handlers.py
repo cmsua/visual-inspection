@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import parse_qs, urlparse
 
+from .chat_routes import chat_get, chat_post, validate_origin
 from ..app import InspectionApp
 from ..configs import INTERFACE_DIR
 from ..utils import repo_relative
@@ -25,16 +26,23 @@ class InspectionRequestHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self) -> None:
         self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header(
+            'Content-Security-Policy',
+            'default-src \'self\'; img-src \'self\' data:; '
+            'style-src \'self\' \'unsafe-inline\'; script-src \'self\'; frame-ancestors \'none\''
+        )
         super().end_headers()
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path.startswith('/api/'):
             try:
+                validate_origin(self)
                 self.handle_api_get(parsed.path, parse_qs(parsed.query))
-            except FileNotFoundError:
+            except FileNotFoundError as exc:
                 self._send_json(
-                    {'error': "Required board or inspection artifact not found"},
+                    {'error': f"Required file not found: {exc.filename}" if exc.filename else str(exc) or "Required file not found."},
                     status=HTTPStatus.NOT_FOUND
                 )
             except (ValueError, KeyError, TypeError) as exc:
@@ -48,14 +56,26 @@ class InspectionRequestHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def handle_api_get(self, path: str, params: Dict[str, List[str]]) -> None:
+        if chat_get(self, path, params):
+            return
+
         if path == '/api/config':
             self._send_json({'board_path': repo_relative(Path(self.app.config.board_path))})
+            return
+
+        if path == '/api/boards':
+            self._send_json(self.app.list_boards(params.get('folder', [None])[0]))
             return
 
         if path == '/api/board':
             board_param = params.get('path', [self.app.config.board_path])[0]
             board_path = self._resolve_board_path(board_param)
-            payload = self.app.build_board_payload(board_path)
+            if params.get('inspect', ['true'])[0] == 'false':
+                payload = self.app.build_board_payload(board_path, run_inspection=False)
+            else:
+                with self.app.execution_guard():
+                    payload = self.app.build_board_payload(board_path)
+
             self._send_json(payload)
 
             return
@@ -76,6 +96,7 @@ class InspectionRequestHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path.startswith('/api/'):
             try:
+                validate_origin(self)
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 <= length <= 65536:
                     raise ValueError("Request body is too large.")
@@ -88,9 +109,9 @@ class InspectionRequestHandler(SimpleHTTPRequestHandler):
                 self.handle_api_post(parsed.path, payload)
             except json.JSONDecodeError:
                 self._send_json({'error': "Invalid JSON body"}, status=HTTPStatus.BAD_REQUEST)
-            except FileNotFoundError:
+            except FileNotFoundError as exc:
                 self._send_json(
-                    {'error': "Required board or inspection artifact not found"},
+                    {'error': f"Required file not found: {exc.filename}" if exc.filename else str(exc) or "Required file not found."},
                     status=HTTPStatus.NOT_FOUND
                 )
             except (ValueError, KeyError, TypeError) as exc:
@@ -107,6 +128,9 @@ class InspectionRequestHandler(SimpleHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def handle_api_post(self, path: str, payload: Dict[str, object]) -> None:
+        if chat_post(self, path, payload):
+            return
+
         if path == '/api/label':
             board_param = str(payload.get('path') or self.app.config.board_path)
             if type(payload['row']) is not int or type(payload['col']) is not int:
@@ -120,7 +144,13 @@ class InspectionRequestHandler(SimpleHTTPRequestHandler):
 
             board_path = self._resolve_board_path(board_param)
             array = self.app._load_board(board_path)  # pylint: disable=protected-access
-            self.app.update_damaged_label(board_path, array.shape, row=row, col=col, is_damaged=is_damaged)
+            self.app.update_damaged_label(
+                board_path,
+                array.shape,
+                row=row,
+                col=col,
+                is_damaged=is_damaged
+            )
             updated = self.app.get_damaged_labels(board_path, array.shape)
             self._send_json({'damaged_segments': updated})
 
@@ -129,7 +159,9 @@ class InspectionRequestHandler(SimpleHTTPRequestHandler):
         if path == '/api/run':
             board_param = str(payload.get('path') or self.app.config.board_path)
             board_path = self._resolve_board_path(board_param)
-            result = self.app.run_inspection_job(board_path)
+            with self.app.execution_guard():
+                result = self.app.run_inspection_job(board_path)
+
             status = 'ok' if result.returncode == 0 else 'error'
             self._send_json(
                 {'status': status, 'stdout': result.stdout, 'stderr': result.stderr},

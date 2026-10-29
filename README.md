@@ -49,10 +49,19 @@ python -m scripts.server --config-path configs/inspection.yaml
 ```
 
 Open the page, enter a processed board path inside the configured `data_root`,
-and choose **Load Board** or **Run Inspection**. Loading a board computes an
-inspection if no current result exists. Run Inspection forces a fresh run via
+and choose **Load board** for manual review without inference or calibration.
+Unscored segments show **Not inspected**. **Run inspection** forces a fresh run via
 `jobs/main.sh` on POSIX, using the server's Python and YAML. Windows uses the
 same inspection CLI directly.
+
+The folder/board picker beside the path controls defaults to `data/bad` (or the
+configured data root when no `bad` subfolder exists). Enter another folder within
+`data_root` and click **List boards**. The dropdown lists NPY files recursively,
+with subfolder names to distinguish files. Selecting one updates the path and
+loads it for manual review; it does not run inference. Folder names are just file
+locations, not training splits or defect labels. Use **List boards** again after
+adding files. Empty folders and missing paths are reported in the picker.
+
 
 The shared Python entry points are:
 
@@ -178,6 +187,226 @@ Only `.npy` boards inside `data_root` are accepted. Labels and segment coordinat
 are bounds-checked. The supported operational input is a preprocessed board;
 scanner acquisition and cropping remain hardware integration work under `scanner/`.
 
+## Codex / HEPTAPOD preflight chat demo
+
+This backend connection demo lets Codex call HEPTAPOD's existing MCP preflight
+tool and explain the result. It does not add a browser chat tab yet. The existing
+inspection UI and whole-segment pipeline are unchanged, and no HEPTAPOD source
+changes or toolbase activation commands are needed.
+
+Requirements: Linux, an installed Codex with `app-server`, a working Codex login,
+and HEPTAPOD's `visual-inspection` branch with its existing environment and toolbase
+configuration. App Server is experimental; this adapter follows the locally
+generated protocol schema. Recheck the connection after Codex/toolbase upgrades.
+See the [Codex App Server protocol documentation](https://learn.chatgpt.com/docs/app-server)
+for the thread, turn, and event interface.
+The MCP launcher reuses the `toolbase._toolkit_host` entry point exercised by
+HEPTAPOD's served-tool tests; it is an internal toolbase interface, not a promise
+of compatibility with every future release.
+
+Review `configs/agent_preflight.yaml` first. Paths resolve relative to that YAML,
+including the optional board override. The example points to the sibling
+HEPTAPOD checkout and its existing `main-demo-v1` copied dataset/configuration.
+It does not create that dataset. Adapt the paths to your installation. The
+`state_config` is the existing toolbase HEPTAPOD YAML containing
+`visual_inspection_*` settings, not the example CLI's differently shaped
+`bridge.json`. Its upstream repository, interpreter, read roots, and writable
+roots are preserved. Runtime diagnostics are redirected to this repository's
+`outputs/agent_preflight/`, without modifying the source state file. Keep the
+inspection YAML consistent with those upstream paths and authorized read roots.
+
+Run from the visual-inspection repository root:
+
+```bash
+# Uses the existing Codex authentication; does not print credentials.
+codex login status
+
+# Start Codex and discover the one exposed MCP tool; no model conversation.
+venv/bin/python -m scripts.agent_preflight --check-connection
+
+# One real preflight call, then one short follow-up using its captured evidence.
+venv/bin/python -m scripts.agent_preflight \
+    --follow-up "Based only on the captured checks, what prevents inspection, if anything?"
+```
+
+The second command tests adapter/MCP readiness. The last command uses the model
+configured for your Codex login unless the YAML specifies one; model turns use
+low reasoning effort. Codex credentials and ordinary Codex runtime state remain
+managed by Codex. The UI below also keeps those credentials server-side.
+Conversation text and tool evidence are sent to the configured model provider;
+board tensors and weights are not attached to chat requests.
+
+Only `VisualInspectionPreflight` is served to the agent, with explicit approval
+for that already-requested diagnostic operation. `InspectBoard` and
+`ReadInspectionResult` are not exposed by this preflight-only CLI. General shell execution,
+plugins, apps, web search, and multi-agent features are disabled for this process,
+and the thread requests a read-only sandbox. Unexpected approvals or permission
+requests are declined and fail the run. This does not change global Codex settings.
+MCP workers are separate processes; their allowed behavior comes from the served
+preflight implementation and HEPTAPOD's own path policy, not the Codex sandbox.
+
+Preflight may load the checkpoint to check compatibility, but does not perform
+inference or repair inputs. It writes diagnostic artifacts, not board sidecars,
+calibration, or labels. A tool envelope with `status: ok` can contain
+`result.ready: false`; the CLI reports that Boolean from actual tool evidence.
+An assistant answer without a successful, correctly targeted preflight result is
+an error, even if the prose claims success. Human review remains necessary before
+treating any later inspection flags as physical defects.
+
+Each run prints its evidence directory, containing:
+
+- `run.json`: connection status, model/thread identity, validated preflight
+  evidence, answers, and failure reason if applicable.
+- `events.jsonl`: completed assistant messages, observed MCP calls/results,
+  turn status, and denied approval events; hidden reasoning is not recorded here.
+- `codex.stderr.log`, `toolbase.log`, and `heptapod/`: retained runtime and worker
+  diagnostics. Do not publish these blindly; they may contain local paths/data.
+
+Exit codes: `0` for connection-only success or a ready preflight, `2` for a
+completed preflight with blockers, `1` for setup/protocol/tool failure, and `130`
+for Ctrl-C. A blocked preflight can still demonstrate successful agent/tool
+integration. Ctrl-C and timeouts interrupt the turn and clean up the local
+process tree, including HEPTAPOD workers in separate sessions. Diagnostic writes
+already completed are retained. Do not automatically retry a failed run.
+
+Configuration is exported from `web.configs` (`AgentConfig`); the session API
+is exported from `web.agent` (`PreflightSession`).
+Within a session, `ask()` runs the initial readiness request and
+`ask(..., require_preflight=False)` answers from captured evidence. The constructor
+accepts an event callback and cancellation event for the web adapter. One
+session permits one preflight call and must be used sequentially by one owner.
+Threads are ephemeral: follow-ups work while the session is open, but persistent
+conversation restoration is provided separately by the web adapter below.
+
+## Inspection and Agent chat demo
+
+Launch both tabs with the existing Codex login and HEPTAPOD checkout:
+
+```bash
+codex login status
+venv/bin/python -m scripts.server --agent-config configs/agent_chat.yaml
+# Open http://127.0.0.1:3000
+```
+
+Manual inspection uses `configs/inspection.yaml` by default, including this
+repository's `data/` directory. Override it with `--config-path` when needed.
+The agent YAML configures the separate HEPTAPOD connection; it no longer replaces
+the manual inspection configuration or restricts it to the HEPTAPOD demo folder.
+The adapter supplies a per-request HEPTAPOD runtime configuration for this
+repository and the selected inspection YAML, with sidecar writes confined to the
+configured data root. It does not modify HEPTAPOD's source or saved configuration.
+HEPTAPOD's existing path, calibration, model, and write checks still apply.
+
+1. Enter a repository-relative path such as `./data/bad_example/320XLF4CQH00445.npy`
+   and click **Load board**. Images and manual labels load without model inference
+   or calibration checks. Segments without scores display **Not inspected**.
+2. Use **Run inspection** when automated scores are needed. This still requires
+   compatible calibration and writes the usual inspection sidecar.
+3. Open **Agent chat** and ask for a summary. The conversation starts automatically
+   for the selected board. Changing the board path starts a separate conversation
+   on the next message, so results from different boards are not mixed.
+4. Chat shows the assistant's response and a compact strip of overall statistics.
+   Existing saved results are supplied as evidence; their current freshness is
+   unverified. If there are no results, run inspection from the Inspection tab.
+   Explicit commands such as **Inspect board 445**, **Please inspect board 445**,
+   or **Recompute board 445** now authorize the corresponding operation. Ordinary
+   questions still only interpret results. You can also use a full filename or
+   repository-relative path. ID lookup searches all subfolders under the manual
+   inspection configuration's `data_root`. Duplicate IDs are rejected with matching
+   paths; specify the full path to select one. Natural variants such as **Inspect
+   the board with ID 67** and **Could you please inspect the board with an ID of
+   67?** also work. **Inspect a board with an ID higher than 500** chooses the
+   lowest available ID strictly above 500. Comparisons also accept above/over,
+   below/under/lower than/less than, at least/at most, and `>`, `>=`, `<`, `<=`.
+   Selection among several IDs requires “a board” or “any board”; a request for
+   “the board” remains ambiguous if several IDs match. Duplicate scans of the
+   selected ID still require a full path. The activity display names the actual
+   selected file. These are supported request forms, not unrestricted language
+   understanding; unsupported descriptions never silently select another board.
+
+During an inspection request, a green activity dot and operation description show
+progress in chat. The Inspection tab shows the same job status and disables its
+load/run buttons while the job is active. On success it displays the saved result
+without another inference call. Blockers, cancellation, and failures remain visible;
+no result is presented as a completed inspection when readiness failed. The activity
+line describes the operation; it is not a shell command executed by the model.
+HEPTAPOD already provides the required inspect/preflight/read tools, so no upstream
+implementation or handoff prompt is needed.
+
+The chat panel has no tool dashboard, artifact browser, or review controls. Manual
+review stays in the Inspection tab. Enter sends a message; Shift+Enter inserts a
+line break. The composer starts at one line, grows to six lines, then scrolls. **New chat** clears the current view, and **Stop** cancels a response.
+Transcripts and diagnostic evidence remain saved server-side. The browser does
+not currently expose a conversation-history picker.
+
+The board grid retains its reversed arrangement and unrotated segment images.
+Agent coordinates are zero-based source coordinates; viewer numbers are one-based.
+
+The browser talks only to this local Python server. The server starts Codex App
+Server, which connects to a small MCP gateway implemented here. That gateway
+exposes only the tools allowed for the selected action and binds board/config/
+force/result arguments server-side. It allows at most one call per tool per
+request, and inspection requires successful readiness in that request. The gateway
+calls HEPTAPOD's existing tools using HEPTAPOD's Python environment. The gateway's
+`mcp` imports therefore resolve in `heptapod_python`, not necessarily the UI's
+Python environment. An editor using only this repository's interpreter may flag
+those imports even when the gateway works. The current HEPTAPOD environment supplies
+MCP 2.2.0; no additional MCP installation in the UI environment is required.
+Verify the configured gateway interpreter with:
+
+```bash
+../heptapod/venv/bin/python -B -c 'from mcp import Client, StdioServerParameters; from mcp.server.mcpserver import MCPServer; print("MCP imports OK")'
+```
+
+Neither an
+assistant message nor model-chosen arguments can grant new write permissions.
+Shell, general file editing, extra MCP servers, apps, and web tools are disabled.
+
+Conversation text, tool evidence, and local paths are sent to the Codex model
+provider using your existing login; board images/tensors and weights are not
+attached. The UI renders basic Markdown (bold, italics, lists, headings, code, tables, and HTTP(S) links) and a thinking indicator,
+not hidden reasoning. Raw HTML remains inert text; LaTeX is not rendered. Model usage counts toward the configured Codex account.
+Each request uses low reasoning effort and the configured timeout (30 minutes
+maximum); this is not a spending cap.
+
+Only one agent operation or inspection may execute at a time. **Stop** cancels
+the active request and cleans up its worker processes; already completed writes
+remain and captured evidence is retained when available. Timeouts and failures
+are shown without automatic retries. Server shutdown stops active jobs; jobs do
+not resume after restart. Transcripts persist, while recent job status is held in
+memory. Conversation/history files are local and are not an authenticated audit
+service. This demo is loopback-only, with origin/host checks; do not expose it as
+a shared multi-user server.
+
+Artifacts are stored under `outputs/agent_chat/`:
+
+- `conversations/<id>.json`: messages, registered evidence, and snapshot-specific
+  human decisions including reviewer and timestamp.
+- `<run_id>/`: Codex event/run records and HEPTAPOD diagnostic artifacts.
+- `reports/<id>.txt`: readable summaries derived from validated snapshot grids.
+- `manual_labels.json`: ordinary UI labels in agent-enabled mode. This separate
+  UI store leaves the calibration configuration and HEPTAPOD labels unchanged.
+
+Conversation and report writes do not alter HEPTAPOD source/configuration. The
+normal inspection tool may still create or refresh its configured board sidecar.
+For real boards, independently validate detection accuracy and calibration; a
+working chat demo does not establish defect-detection performance.
+
+Validation commands:
+
+```bash
+venv/bin/python -m pytest -q
+node tests/test_agent_chat.mjs
+node --check web/interface/app.js
+node --check web/interface/chat.js
+venv/bin/ruff check src scripts web tests
+```
+
+The UI test uses a DOM/API harness, not a browser rendering engine. Live local
+validation exercised Codex readiness and the HTTP preflight → cached inspection →
+saved-result read → image/evidence retrieval path. Forced real inference and
+real-browser rendering were not exercised in that smoke test.
+
 ## Tests and conventions
 
 ```bash
@@ -191,8 +420,9 @@ loader, threshold, serialization, and HTTP tests use synthetic fixtures and
 temporary artifacts. Notebooks are clients of repository helpers; editing them
 does not require executing training cells.
 
-Follow `AGENTS.md` for quote choice, type annotations, grouped imports, NumPy
-API docstrings, and multiline layouts. Plot helpers accept `savefig` and `show`;
+Follow [docs/STYLES.md](docs/STYLES.md) for quote choice, type annotations, grouped
+imports, NumPy API docstrings, multiline layouts, and Ruff guidance. `AGENTS.md`
+defines repository-specific contracts. Plot helpers accept `savefig` and `show`;
 `show=False` returns the figure for the caller to close. `save_fig` remains a
 compatibility alias. CLI modules are execution-only and are never imported by
 application code.

@@ -22,11 +22,19 @@
                     </button>
                 </div>
             </div>
-            <div class="board-loader">
+            <div class="board-loader" id="board-controls">
                 <label for="board-path">Board path</label>
                 <input id="board-path" type="text" value="./data/bad_example/320XLF4CQH00445.npy" spellcheck="false">
-                <button id="load-board">Load Board</button>
-                <button id="run-inspection">Run Inspection</button>
+                <button id="load-board">Load board</button>
+                <button id="run-inspection">Run inspection</button>
+            </div>
+            <div class="board-loader board-picker">
+                <label for="board-folder">Folder</label>
+                <input id="board-folder" type="text" placeholder="./data/bad" spellcheck="false">
+                <button id="refresh-boards" type="button">List boards</button>
+                <label for="board-select">Choose board</label>
+                <select id="board-select" aria-describedby="board-list-status" disabled><option value="">Select a board…</option></select>
+                <span id="board-list-status" role="status" aria-live="polite"></span>
             </div>
             <div id="run-progress" class="run-progress hidden" aria-hidden="true">
                 <div class="progress-bar"></div>
@@ -34,7 +42,17 @@
             <div id="run-status" class="run-status" aria-live="polite"></div>
         </header>
 
-        <main class="app-main">
+        <nav class="workspace-tabs" role="tablist" aria-label="Workspace">
+            <button id="inspection-tab" role="tab" aria-selected="true" aria-controls="inspection-panel">Inspection</button>
+            <button id="chat-tab" role="tab" aria-selected="false" aria-controls="chat-panel">Agent chat</button>
+        </nav>
+        <div id="review-banner" hidden>
+            <strong>Human review of saved evidence</strong>
+            <p id="review-summary"></p>
+            <label>Reviewer <input id="reviewer" maxlength="100" autocomplete="name"></label>
+            <span id="review-decision"></span>
+        </div>
+        <main id="inspection-panel" class="app-main" role="tabpanel" aria-labelledby="inspection-tab">
             <section class="segment-viewer">
                 <div class="image-frame">
                     <img id="segment-image" alt="Segment preview">
@@ -69,8 +87,9 @@
                             <button id="nav-right" type="button" aria-label="Next column">▶</button>
                         </div>
                         <div class="label-actions">
-                            <button id="mark-damaged" type="button" class="danger">Mark Damaged</button>
-                            <button id="mark-ok" type="button" class="safe">Mark OK</button>
+                            <button id="mark-damaged" type="button" class="danger">Human: damaged</button>
+                            <button id="mark-ok" type="button" class="safe">Human: OK</button>
+                            <button id="mark-uncertain" type="button" hidden>Human: uncertain</button>
                         </div>
                     </div>
                 </div>
@@ -85,15 +104,41 @@
                     <span><span class="legend-swatch status-double"></span> Flagged by both</span>
                     <span><span class="legend-swatch status-pixel"></span> Pixelwise only</span>
                     <span><span class="legend-swatch status-auto"></span> Autoencoder only</span>
-                    <span><span class="legend-swatch status-ok"></span> OK</span>
+                    <span><span class="legend-swatch status-ok"></span> Not flagged</span>
+                    <span><span class="legend-swatch status-uninspected"></span> Not inspected</span>
                     <span><span class="legend-swatch status-skipped"></span> Skipped</span>
                     <span><span class="legend-swatch manual-damaged"></span> Flagged by user</span>
-                    <span><span class="legend-swatch status-ok-visited"></span> OK</span>
+                    <span><span class="legend-swatch status-ok-visited"></span> Human: OK</span>
                 </div>
             </aside>
         </main>
+        <section id="chat-panel" role="tabpanel" aria-labelledby="chat-tab" hidden>
+            <div class="chat-heading">
+                <div><span class="chat-eyebrow">INSPECTION ASSISTANT</span><h2>A clearer view of your board</h2></div>
+                <button id="chat-new" type="button">New chat</button>
+            </div>
+            <p id="chat-board" class="chat-board">Using the board selected above</p>
+            <div id="chat-stats" class="chat-stats" aria-label="Latest inspection statistics" hidden></div>
+            <div id="chat-messages" role="log" aria-label="Conversation">
+                <div class="chat-welcome"><div class="chat-symbol" aria-hidden="true">✦</div>
+                    <h3>What would you like to know?</h3>
+                    <p>Ask for a summary, compare the methods, or understand the overall results.</p>
+                </div>
+            </div>
+            <div id="chat-activity" class="agent-activity" role="status" hidden></div>
+            <div class="chat-composer">
+                <label class="visually-hidden" for="chat-message">Your message</label>
+                <textarea id="chat-message" rows="1" maxlength="8000" placeholder="Ask about results, or type Inspect board 445…"></textarea>
+                <div class="chat-compose-footer"><span>Findings support your review. You make the final decision.</span>
+                    <button id="chat-stop" type="button" hidden>Stop</button>
+                    <button id="chat-send" type="button">Send <span aria-hidden="true">↑</span></button>
+                </div>
+            </div>
+            <p id="chat-status" role="status" aria-live="polite">Connecting…</p>
+        </section>
     </div>
 
     <script type="module" src="app.js"></script>
+    <script type="module" src="chat.js"></script>
 </body>
 </html>
